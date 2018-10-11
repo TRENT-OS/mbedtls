@@ -98,9 +98,7 @@ if(CMAKE_COMPILER_IS_CLANG)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-declarations -Wmissing-prototypes -Wdocumentation -Wno-documentation-deprecated-sync -Wunreachable-code")
 endif(CMAKE_COMPILER_IS_CLANG)
 
-if(WIN32)
-    set(libs ${libs} ws2_32)
-endif(WIN32)
+set(libs ${libs} Configuration muslc)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
@@ -179,3 +177,6 @@ add_custom_target(lib DEPENDS mbedcrypto mbedx509 mbedtls)
 if(USE_STATIC_MBEDTLS_LIBRARY AND USE_SHARED_MBEDTLS_LIBRARY)
     add_dependencies(lib mbedcrypto_static mbedx509_static mbedtls_static)
 endif()
+
+target_include_directories(mbedtls PUBLIC ../include/)
+
