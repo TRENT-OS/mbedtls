@@ -60,7 +60,7 @@
 #define MBEDTLS_AES_ROM_TABLES
 
 /* Save some RAM by adjusting to your exact needs */
-#define MBEDTLS_PSK_MAX_LEN    16 /* 128-bits keys are generally enough */
+#define MBEDTLS_PSK_MAX_LEN    44 /* 128-bits keys are generally enough */
 
 /*
  * You should adjust this to the exact number of sources you're using: default
