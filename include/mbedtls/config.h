@@ -40,6 +40,8 @@
 
 /* mbed TLS feature support */
 #define MBEDTLS_KEY_EXCHANGE_PSK_ENABLED
+#define MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED
+#define MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED
 #define MBEDTLS_SSL_PROTO_TLS1_2
 
 /* mbed TLS modules */
@@ -75,14 +77,49 @@
  */
 #define MBEDTLS_SSL_CIPHERSUITES                        \
         MBEDTLS_TLS_PSK_WITH_AES_256_CCM_8,             \
-        MBEDTLS_TLS_PSK_WITH_AES_128_CCM_8
+        MBEDTLS_TLS_PSK_WITH_AES_128_CCM_8,             \
+        MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
 
 /*
  * Save RAM at the expense of interoperability: do this only if you control
  * both ends of the connection!  (See comments in "mbedtls/ssl.h".)
  * The optimal size here depends on the typical size of records.
  */
-#define MBEDTLS_SSL_MAX_CONTENT_LEN             1024
+#define MBEDTLS_SSL_MAX_CONTENT_LEN             (4096*4)
+
+#define MBEDTLS_DEBUG_C
+
+#define MBEDTLS_CIPHER_MODE_CBC
+
+#define MBEDTLS_X509_CRT_PARSE_C
+#define MBEDTLS_X509_USE_C
+#define MBEDTLS_BIGNUM_C
+#define MBEDTLS_OID_C
+#define MBEDTLS_ASN1_PARSE_C
+#define MBEDTLS_PK_PARSE_C
+#define MBEDTLS_PK_C
+#define MBEDTLS_RSA_C
+#define MBEDTLS_ECP_C
+#define MBEDTLS_PKCS1_V21
+#define MBEDTLS_PKCS1_V15
+#define MBEDTLS_ECP_DP_SECP192R1_ENABLED
+#define MBEDTLS_ECP_DP_SECP224R1_ENABLED
+#define MBEDTLS_ECP_DP_SECP256R1_ENABLED
+#define MBEDTLS_ECP_DP_SECP384R1_ENABLED
+#define MBEDTLS_ECP_DP_SECP521R1_ENABLED
+#define MBEDTLS_ECP_DP_BP256R1_ENABLED
+#define MBEDTLS_ECP_DP_BP384R1_ENABLED
+#define MBEDTLS_ECP_DP_BP512R1_ENABLED
+#define MBEDTLS_ECP_DP_SECP192K1_ENABLED
+#define MBEDTLS_ECP_DP_SECP224K1_ENABLED
+#define MBEDTLS_ECP_DP_SECP256K1_ENABLED
+
+#define MBEDTLS_KEY_EXCHANGE__WITH_CERT__ENABLED
+
+#define MBEDTLS_PEM_PARSE_C
+#define MBEDTLS_BASE64_C
+#define MBEDTLS_ECDH_C
+
 
 #include "mbedtls/check_config.h"
 
