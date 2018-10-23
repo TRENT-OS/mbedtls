@@ -120,6 +120,9 @@
 #define MBEDTLS_BASE64_C
 #define MBEDTLS_ECDH_C
 
+#define MBEDTLS_CERTS_C
+#define MBEDTLS_RSA_C
+#define MBEDTLS_ECDH_C
 
 #include "mbedtls/check_config.h"
 
