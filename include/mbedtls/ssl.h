@@ -30,6 +30,10 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
+#if defined(USE_SEOS_CRYPTO)
+#include "SeosCryptoApi.h"
+#endif
+
 #include "bignum.h"
 #include "ecp.h"
 
@@ -1021,6 +1025,10 @@ struct mbedtls_ssl_config
 
 struct mbedtls_ssl_context
 {
+#if defined(USE_SEOS_CRYPTO)
+    SeosCryptoCtx*      cryptoCtx;
+#endif
+
     const mbedtls_ssl_config *conf; /*!< configuration information          */
 
     /*
@@ -1394,6 +1402,9 @@ void mbedtls_ssl_set_bio( mbedtls_ssl_context *ssl,
                           mbedtls_ssl_send_t *f_send,
                           mbedtls_ssl_recv_t *f_recv,
                           mbedtls_ssl_recv_timeout_t *f_recv_timeout );
+
+void mbedtls_ssl_set_crypto( mbedtls_ssl_context *ssl,
+                          void *ctx);
 
 #if defined(MBEDTLS_SSL_PROTO_DTLS)
 /**
@@ -2033,7 +2044,7 @@ void mbedtls_ssl_conf_ca_chain( mbedtls_ssl_config *conf,
  *                 provision more than one cert/key pair (eg one ECDSA, one
  *                 RSA with SHA-256, one RSA with SHA-1). An adequate
  *                 certificate will be selected according to the client's
- *                 advertised capabilities. In case multiple certificates are
+ *                 advertised capabilities. In case mutliple certificates are
  *                 adequate, preference is given to the one set by the first
  *                 call to this function, then second, etc.
  *
@@ -3206,7 +3217,7 @@ void mbedtls_ssl_free( mbedtls_ssl_context *ssl );
  *                 mbedtls_ssl_config_defaults() or mbedtls_ssl_config_free().
  *
  * \note           You need to call mbedtls_ssl_config_defaults() unless you
- *                 manually set all of the relevant fields yourself.
+ *                 manually set all of the relevent fields yourself.
  *
  * \param conf     SSL configuration context
  */

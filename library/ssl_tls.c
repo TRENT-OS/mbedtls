@@ -35,6 +35,10 @@
 
 #if defined(MBEDTLS_SSL_TLS_C)
 
+#if defined(USE_SEOS_CRYPTO)
+#include "SeosCryptoApi.h"
+#endif
+
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
@@ -1044,6 +1048,42 @@ int mbedtls_ssl_derive_keys( mbedtls_ssl_context *ssl )
         return( ret );
     }
 
+#if defined(USE_SEOS_CRYPTO)
+    seos_err_t err;
+    static SeosCryptoKey_Data key1Data, key2Data;
+
+    if (MBEDTLS_CIPHER_AES_128_GCM == cipher_info->type
+        || MBEDTLS_CIPHER_AES_192_GCM == cipher_info->type
+        || MBEDTLS_CIPHER_AES_256_GCM == cipher_info->type)
+    {
+        key1Data.type = key2Data.type = SeosCryptoKey_Type_AES;
+        key1Data.data.aes.len = key2Data.data.aes.len = cipher_info->key_bitlen >> 3;
+        memcpy(key1Data.data.aes.bytes, key1, key1Data.data.aes.len);
+        memcpy(key2Data.data.aes.bytes, key2, key2Data.data.aes.len);
+    }
+    else
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Cipher mode not supported by SEOS crypto" ) );
+        return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+    }
+
+    if ((err = SeosCryptoApi_keyImport(ssl->cryptoCtx,
+                                       &transform->key_enc, NULL, &key1Data)) != SEOS_SUCCESS)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyImport", err );
+        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+    }
+    if ((err = SeosCryptoApi_keyImport(ssl->cryptoCtx,
+                                       &transform->key_dec, NULL, &key2Data)) != SEOS_SUCCESS)
+    {
+        (void) SeosCryptoApi_keyFree(ssl->cryptoCtx, transform->key_enc);
+        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyImport", err );
+        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+    }
+    // Mark as "in use" so we know if we can free them when the transform is not
+    // longer needed..
+    transform->keys_in_use = true;
+#else
     if( ( ret = mbedtls_cipher_setkey( &transform->cipher_ctx_enc, key1,
                                cipher_info->key_bitlen,
                                MBEDTLS_ENCRYPT ) ) != 0 )
@@ -1059,6 +1099,7 @@ int mbedtls_ssl_derive_keys( mbedtls_ssl_context *ssl )
         MBEDTLS_SSL_DEBUG_RET( 1, "mbedtls_cipher_setkey", ret );
         return( ret );
     }
+#endif
 
 #if defined(MBEDTLS_CIPHER_MODE_CBC)
     if( cipher_info->mode == MBEDTLS_MODE_CBC )
@@ -1551,7 +1592,9 @@ static int ssl_encrypt_buf( mbedtls_ssl_context *ssl )
         mode == MBEDTLS_MODE_CCM ||
         mode == MBEDTLS_MODE_CHACHAPOLY )
     {
+#if !defined(USE_SEOS_CRYPTO)
         int ret;
+#endif
         size_t enc_msglen, olen;
         unsigned char *enc_msg;
         unsigned char add_data[13];
@@ -1620,6 +1663,60 @@ static int ssl_encrypt_buf( mbedtls_ssl_context *ssl )
         /*
          * Encrypt and authenticate
          */
+#if defined(USE_SEOS_CRYPTO)
+        seos_err_t err;
+        SeosCrypto_CipherHandle seosCipher;
+        size_t tlen = taglen;
+
+        if (mode == MBEDTLS_MODE_GCM)
+        {
+            if ((err = SeosCryptoApi_cipherInit(ssl->cryptoCtx, &seosCipher,
+                                                SeosCryptoCipher_Algorithm_AES_GCM_ENC, transform->key_enc,
+                                                iv, transform->ivlen)) != SEOS_SUCCESS)
+            {
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherInit", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            if ((err = SeosCryptoApi_cipherStart(ssl->cryptoCtx, seosCipher,
+                                                add_data, 13)) != SEOS_SUCCESS)
+            {
+                (void) SeosCryptoApi_cipherFree(ssl->cryptoCtx, seosCipher);
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherStart", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            olen = enc_msglen;
+            if ((err = SeosCryptoApi_cipherProcess(ssl->cryptoCtx, seosCipher,
+                                                enc_msg, enc_msglen,
+                                                enc_msg, &olen)) != SEOS_SUCCESS)
+            {
+                (void) SeosCryptoApi_cipherFree(ssl->cryptoCtx, seosCipher);
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherProcess", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            if ((err = SeosCryptoApi_cipherFinalize(ssl->cryptoCtx, seosCipher,
+                                                    enc_msg + enc_msglen, &tlen)) != SEOS_SUCCESS)
+            {
+                (void) SeosCryptoApi_cipherFree(ssl->cryptoCtx, seosCipher);
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherFinalize", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            if ((err = SeosCryptoApi_cipherFree(ssl->cryptoCtx,
+                                                seosCipher)) != SEOS_SUCCESS)
+            {
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherFree", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+        }
+        else
+        {
+            MBEDTLS_SSL_DEBUG_MSG( 1, ( "Cipher mode not supported by SEOS crypto" ) );
+            return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+        }
+#else
         if( ( ret = mbedtls_cipher_auth_encrypt( &transform->cipher_ctx_enc,
                                          iv, transform->ivlen,
                                          add_data, 13,
@@ -1630,6 +1727,7 @@ static int ssl_encrypt_buf( mbedtls_ssl_context *ssl )
             MBEDTLS_SSL_DEBUG_RET( 1, "mbedtls_cipher_auth_encrypt", ret );
             return( ret );
         }
+#endif
 
         if( olen != enc_msglen )
         {
@@ -1841,7 +1939,9 @@ static int ssl_decrypt_buf( mbedtls_ssl_context *ssl )
         mode == MBEDTLS_MODE_CCM ||
         mode == MBEDTLS_MODE_CHACHAPOLY )
     {
+#if !defined(USE_SEOS_CRYPTO)
         int ret;
+#endif
         size_t dec_msglen, olen;
         unsigned char *dec_msg;
         unsigned char *dec_msg_result;
@@ -1913,6 +2013,60 @@ static int ssl_decrypt_buf( mbedtls_ssl_context *ssl )
         /*
          * Decrypt and authenticate
          */
+#if defined(USE_SEOS_CRYPTO)
+        seos_err_t err;
+        SeosCrypto_CipherHandle seosCipher;
+        size_t tlen = taglen;
+
+        if (mode == MBEDTLS_MODE_GCM)
+        {
+            if ((err = SeosCryptoApi_cipherInit(ssl->cryptoCtx, &seosCipher,
+                                                SeosCryptoCipher_Algorithm_AES_GCM_DEC, transform->key_dec,
+                                                iv, transform->ivlen)) != SEOS_SUCCESS)
+            {
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherInit", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            if ((err = SeosCryptoApi_cipherStart(ssl->cryptoCtx, seosCipher,
+                                                add_data, 13)) != SEOS_SUCCESS)
+            {
+                (void) SeosCryptoApi_cipherFree(ssl->cryptoCtx, seosCipher);
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherStart", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            olen = dec_msglen;
+            if ((err = SeosCryptoApi_cipherProcess(ssl->cryptoCtx, seosCipher,
+                                                dec_msg, dec_msglen,
+                                                dec_msg_result, &olen)) != SEOS_SUCCESS)
+            {
+                (void) SeosCryptoApi_cipherFree(ssl->cryptoCtx, seosCipher);
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherProcess", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            if ((err = SeosCryptoApi_cipherFinalize(ssl->cryptoCtx, seosCipher,
+                                                    dec_msg + dec_msglen, &tlen)) != SEOS_SUCCESS)
+            {
+                (void) SeosCryptoApi_cipherFree(ssl->cryptoCtx, seosCipher);
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherFinalize", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+
+            if ((err = SeosCryptoApi_cipherFree(ssl->cryptoCtx,
+                                                seosCipher)) != SEOS_SUCCESS)
+            {
+                MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_cipherFree", err );
+                return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+            }
+        }
+        else
+        {
+            MBEDTLS_SSL_DEBUG_MSG( 1, ( "Cipher mode not supported by SEOS crypto" ) );
+            return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+        }
+#else
         if( ( ret = mbedtls_cipher_auth_decrypt( &ssl->transform_in->cipher_ctx_dec,
                                          iv, transform->ivlen,
                                          add_data, 13,
@@ -1927,6 +2081,7 @@ static int ssl_decrypt_buf( mbedtls_ssl_context *ssl )
 
             return( ret );
         }
+#endif
         auth_done++;
 
         if( olen != dec_msglen )
@@ -2606,7 +2761,7 @@ int mbedtls_ssl_fetch_input( mbedtls_ssl_context *ssl, size_t nb_want )
         }
 
         /*
-         * A record can't be split across datagrams. If we need to read but
+         * A record can't be split accross datagrams. If we need to read but
          * are not at the beginning of a new record, the caller did something
          * wrong.
          */
@@ -6320,7 +6475,7 @@ static void ssl_handshake_wrapup_free_hs_transform( mbedtls_ssl_context *ssl )
      */
     if( ssl->transform )
     {
-        mbedtls_ssl_transform_free( ssl->transform );
+        mbedtls_ssl_transform_free( ssl, ssl->transform );
         mbedtls_free( ssl->transform );
     }
     ssl->transform = ssl->transform_negotiate;
@@ -6666,7 +6821,7 @@ static int ssl_handshake_init( mbedtls_ssl_context *ssl )
 {
     /* Clear old handshake information if present */
     if( ssl->transform_negotiate )
-        mbedtls_ssl_transform_free( ssl->transform_negotiate );
+        mbedtls_ssl_transform_free( ssl, ssl->transform_negotiate );
     if( ssl->session_negotiate )
         mbedtls_ssl_session_free( ssl->session_negotiate );
     if( ssl->handshake )
@@ -7015,7 +7170,7 @@ static int ssl_session_reset_int( mbedtls_ssl_context *ssl, int partial )
 
     if( ssl->transform )
     {
-        mbedtls_ssl_transform_free( ssl->transform );
+        mbedtls_ssl_transform_free( ssl, ssl->transform );
         mbedtls_free( ssl->transform );
         ssl->transform = NULL;
     }
@@ -7129,6 +7284,14 @@ void mbedtls_ssl_conf_dbg( mbedtls_ssl_config *conf,
 {
     conf->f_dbg      = f_dbg;
     conf->p_dbg      = p_dbg;
+}
+
+void mbedtls_ssl_set_crypto( mbedtls_ssl_context *ssl,
+                          void *ctx)
+{
+#if defined(USE_SEOS_CRYPTO)
+    ssl->cryptoCtx = ctx;
+#endif
 }
 
 void mbedtls_ssl_set_bio( mbedtls_ssl_context *ssl,
@@ -8743,7 +8906,8 @@ int mbedtls_ssl_close_notify( mbedtls_ssl_context *ssl )
     return( 0 );
 }
 
-void mbedtls_ssl_transform_free( mbedtls_ssl_transform *transform )
+void mbedtls_ssl_transform_free( mbedtls_ssl_context *ssl,
+    mbedtls_ssl_transform *transform )
 {
     if( transform == NULL )
         return;
@@ -8758,6 +8922,19 @@ void mbedtls_ssl_transform_free( mbedtls_ssl_transform *transform )
 
     mbedtls_md_free( &transform->md_ctx_enc );
     mbedtls_md_free( &transform->md_ctx_dec );
+
+#if defined(USE_SEOS_CRYPTO)
+    seos_err_t err;
+    if (transform->keys_in_use)
+    {
+        if ( ((err = SeosCrypto_keyFree(ssl->cryptoCtx, transform->key_enc)) != SEOS_SUCCESS)
+            || ((err = SeosCrypto_keyFree(ssl->cryptoCtx, transform->key_dec)) != SEOS_SUCCESS) )
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, "SeosCrypto_keyFree", err );
+        }
+        transform->keys_in_use = false;
+    }
+#endif
 
     mbedtls_platform_zeroize( transform, sizeof( mbedtls_ssl_transform ) );
 }
@@ -8955,14 +9132,14 @@ void mbedtls_ssl_free( mbedtls_ssl_context *ssl )
 
     if( ssl->transform )
     {
-        mbedtls_ssl_transform_free( ssl->transform );
+        mbedtls_ssl_transform_free( ssl, ssl->transform );
         mbedtls_free( ssl->transform );
     }
 
     if( ssl->handshake )
     {
         mbedtls_ssl_handshake_free( ssl );
-        mbedtls_ssl_transform_free( ssl->transform_negotiate );
+        mbedtls_ssl_transform_free( ssl, ssl->transform_negotiate );
         mbedtls_ssl_session_free( ssl->session_negotiate );
 
         mbedtls_free( ssl->handshake );
@@ -9043,12 +9220,8 @@ static int ssl_preset_suiteb_hashes[] = {
 
 #if defined(MBEDTLS_ECP_C)
 static mbedtls_ecp_group_id ssl_preset_suiteb_curves[] = {
-#if defined(MBEDTLS_ECP_DP_SECP256R1_ENABLED)
     MBEDTLS_ECP_DP_SECP256R1,
-#endif
-#if defined(MBEDTLS_ECP_DP_SECP384R1_ENABLED)
     MBEDTLS_ECP_DP_SECP384R1,
-#endif
     MBEDTLS_ECP_DP_NONE
 };
 #endif

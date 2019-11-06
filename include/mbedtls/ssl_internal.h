@@ -460,6 +460,12 @@ struct mbedtls_ssl_transform
     z_stream ctx_deflate;               /*!<  compression context     */
     z_stream ctx_inflate;               /*!<  decompression context   */
 #endif
+
+#if defined(USE_SEOS_CRYPTO)
+    bool                        keys_in_use;
+    SeosCrypto_KeyHandle        key_enc;
+    SeosCrypto_KeyHandle        key_dec;
+#endif
 };
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
@@ -516,7 +522,7 @@ static inline void mbedtls_ssl_sig_hash_set_init( mbedtls_ssl_sig_hash_set_t *se
  *
  * \param transform SSL transform context
  */
-void mbedtls_ssl_transform_free( mbedtls_ssl_transform *transform );
+void mbedtls_ssl_transform_free( mbedtls_ssl_context *ssl, mbedtls_ssl_transform *transform );
 
 /**
  * \brief           Free referenced items in an SSL handshake context and clear
