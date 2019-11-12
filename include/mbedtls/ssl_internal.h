@@ -372,6 +372,9 @@ struct mbedtls_ssl_handshake_params
       mbedtls_sha1_context fin_sha1;
 #endif
 #if defined(MBEDTLS_SSL_PROTO_TLS1_2)
+#if defined(USE_SEOS_CRYPTO)
+    SeosCrypto_DigestHandle fin_seos;
+#endif
 #if defined(MBEDTLS_SHA256_C)
     mbedtls_sha256_context fin_sha256;
 #endif
@@ -383,7 +386,7 @@ struct mbedtls_ssl_handshake_params
     void (*update_checksum)(mbedtls_ssl_context *, const unsigned char *, size_t);
     void (*calc_verify)(mbedtls_ssl_context *, unsigned char *);
     void (*calc_finished)(mbedtls_ssl_context *, unsigned char *, int);
-    int  (*tls_prf)(const unsigned char *, size_t, const char *,
+    int  (*tls_prf)(mbedtls_ssl_context *, const unsigned char *, size_t, const char *,
                     const unsigned char *, size_t,
                     unsigned char *, size_t);
 
