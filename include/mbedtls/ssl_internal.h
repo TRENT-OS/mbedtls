@@ -372,10 +372,6 @@ struct mbedtls_ssl_handshake_params
       mbedtls_sha1_context fin_sha1;
 #endif
 #if defined(MBEDTLS_SSL_PROTO_TLS1_2)
-#if defined(USE_SEOS_CRYPTO)
-    SeosCrypto_DigestHandle sessionHash;
-    SeosCrypto_KeyHandle    pubKey;
-#endif
 #if defined(MBEDTLS_SHA256_C)
     mbedtls_sha256_context fin_sha256;
 #endif
@@ -421,6 +417,24 @@ struct mbedtls_ssl_handshake_params
      * The library does not use it internally. */
     void *user_async_ctx;
 #endif /* MBEDTLS_SSL_ASYNC_PRIVATE */
+
+#if defined(USE_SEOS_CRYPTO)
+    // Here we store some more info about ECDH params, which should eventually
+    // allow us to be independent from any of the original mbedTLS crypto
+    // contexts
+    struct ecdh {
+        // Server may communicate which point format he accepts
+        uint8_t pointFormat;
+        // Length of prime of curve used
+        uint8_t primeLen;
+        // ID of curve according to TLS
+        uint16_t curveId;
+    } ecdh;
+    // Used to compute hash over session
+    SeosCrypto_DigestHandle sessionHash;
+    // Used to hold the server's public key value (DH or ECDH for now)
+    SeosCrypto_KeyHandle    pubKey;
+#endif /* USE_SEOS_CRYPTO */
 };
 
 typedef struct mbedtls_ssl_hs_buffer mbedtls_ssl_hs_buffer;

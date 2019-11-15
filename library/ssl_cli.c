@@ -1259,7 +1259,8 @@ static int ssl_parse_session_ticket_ext( mbedtls_ssl_context *ssl,
 }
 #endif /* MBEDTLS_SSL_SESSION_TICKETS */
 
-#if defined(MBEDTLS_ECDH_C) || defined(MBEDTLS_ECDSA_C) || \
+#if defined(USE_SEOS_CRYPTO) || \
+    defined(MBEDTLS_ECDH_C) || defined(MBEDTLS_ECDSA_C) || \
     defined(MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED)
 static int ssl_parse_supported_point_formats_ext( mbedtls_ssl_context *ssl,
                                                   const unsigned char *buf,
@@ -1283,12 +1284,16 @@ static int ssl_parse_supported_point_formats_ext( mbedtls_ssl_context *ssl,
         if( p[0] == MBEDTLS_ECP_PF_UNCOMPRESSED ||
             p[0] == MBEDTLS_ECP_PF_COMPRESSED )
         {
+#if defined(USE_SEOS_CRYPTO)
+            ssl->handshake->ecdh.pointFormat = p[0];
+#else
 #if defined(MBEDTLS_ECDH_C) || defined(MBEDTLS_ECDSA_C)
             ssl->handshake->ecdh_ctx.point_format = p[0];
 #endif
 #if defined(MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED)
             ssl->handshake->ecjpake_ctx.point_format = p[0];
 #endif
+#endif /* USE_SEOS_CRYPTO */
             MBEDTLS_SSL_DEBUG_MSG( 4, ( "point format selected: %d", p[0] ) );
             return( 0 );
         }
@@ -1882,7 +1887,8 @@ static int ssl_parse_server_hello( mbedtls_ssl_context *ssl )
             break;
 #endif /* MBEDTLS_SSL_SESSION_TICKETS */
 
-#if defined(MBEDTLS_ECDH_C) || defined(MBEDTLS_ECDSA_C) || \
+#if defined(USE_SEOS_CRYPTO) || \
+    defined(MBEDTLS_ECDH_C) || defined(MBEDTLS_ECDSA_C) || \
     defined(MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED)
         case MBEDTLS_TLS_EXT_SUPPORTED_POINT_FORMATS:
             MBEDTLS_SSL_DEBUG_MSG( 3, ( "found supported_point_formats extension" ) );
@@ -1894,7 +1900,8 @@ static int ssl_parse_server_hello( mbedtls_ssl_context *ssl )
             }
 
             break;
-#endif /* MBEDTLS_ECDH_C || MBEDTLS_ECDSA_C ||
+#endif /* USE_SEOS_CRYPTO ||
+          MBEDTLS_ECDH_C || MBEDTLS_ECDSA_C ||
           MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED */
 
 #if defined(MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED)
@@ -1982,7 +1989,7 @@ static int ssl_parse_server_hello( mbedtls_ssl_context *ssl )
 
 #if defined(USE_SEOS_CRYPTO)
 static size_t
-ssl_copy_bignum(unsigned char    **p,
+ssl_read_bignum(unsigned char    **p,
                 unsigned char    *end,
                 void*            buf,
                 size_t           sz)
@@ -2105,6 +2112,171 @@ static int ssl_parse_server_dh_params( mbedtls_ssl_context *ssl, unsigned char *
           MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED */
 #endif /* USE_SEOS_CRYPTO */
 
+#if defined(USE_SEOS_CRYPTO)
+static uint16_t
+ssl_read_curve_id(unsigned char **p,
+                  unsigned char *end)
+{
+    uint8_t type;
+    uint16_t id;
+
+    if((size_t)(end - *p) < 3)
+        return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
+
+    // First byte is curve_type; only named_curve is handled
+    type = **p;
+    (*p) += 1;
+    if(type != MBEDTLS_ECP_TLS_NAMED_CURVE )
+        return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
+
+    // Name of the curve
+    id = ((*p)[0] << 8) | (*p)[1];
+    (*p) += 2;
+
+    return id;
+}
+
+static int
+ssl_read_curve_point(unsigned char   **p,
+                     unsigned char   *end,
+                     size_t          pLen,
+                     void *          xBytes,
+                     size_t*         xLen,
+                     void*           yBytes,
+                     size_t*         yLen)
+{
+    size_t n;
+    int ret;
+
+    // We must have at least two bytes (1 for length, at least one for data)
+    if ( end - *p < 2 )
+    {
+        return ( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
+    }
+
+    n = ** p;
+    (*p) += 1;
+
+    if (n < 1 || n > (size_t)(end - *p))
+    {
+        return ( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
+    }
+
+    ret = 0;
+    switch (**p)
+    {
+    case 0x00:
+        // This marks a point with ALL ZERO coordinates
+        if (n != 1)
+        {
+            ret = MBEDTLS_ERR_ECP_BAD_INPUT_DATA;
+            goto out;
+        }
+        // Zero out the whole array
+        memset(xBytes, 0, *xLen);
+        memset(yBytes, 0, *yLen);
+        *xLen = *yLen = 0;
+        break;
+    case 0x04:
+        if(n != (2 * pLen) + 1)
+        {
+            ret = MBEDTLS_ERR_ECP_BAD_INPUT_DATA;
+            goto out;
+        }
+        // Both coords need to be as long as the prime of the curve
+        *xLen = *yLen = pLen;
+        memcpy(xBytes, *p + 1, *xLen);
+        memcpy(yBytes, *p + 1 + pLen, *yLen);
+        break;
+    default:
+        ret = MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
+    }
+
+out:
+    (*p) += n;
+
+    return ret;
+}
+
+static int ssl_parse_server_ecdh_params( mbedtls_ssl_context* ssl,
+                                         unsigned char** p,
+                                         unsigned char* end )
+{
+    seos_err_t err;
+    static SeosCryptoKey_Data keyData =
+    {
+        .type = SeosCryptoKey_Type_SECP256R1_PUB,
+        .attribs.flags = SeosCryptoKey_Flags_EXPORTABLE_RAW
+    };
+    SeosCryptoKey_SECP256r1Pub* ecPub = &keyData.data.secp256r1.pub;
+
+    /*
+     * Ephemeral ECDH parameters:
+     *
+     * struct {
+     *     ECParameters curve_params;
+     *     ECPoint      public;
+     * } ServerECDHParams;
+     */
+    if ((ssl->handshake->ecdh.curveId = ssl_read_curve_id(p, end)) < 0)
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Could not parse server ECDH curve id param") );
+        return MBEDTLS_ERR_DHM_BAD_INPUT_DATA ;
+    }
+
+    MBEDTLS_SSL_DEBUG_MSG( 3, ( "ECDH curve ID: %i",
+                                ssl->handshake->ecdh.curveId ) );
+
+    // Based on the curve_id, determine the size of the underlying prime. At this
+    // point we only support one curve.
+    switch (ssl->handshake->ecdh.curveId)
+    {
+    case 23: // secp256r1
+        ssl->handshake->ecdh.primeLen = 32;
+        break;
+    case 25: // secp521r1
+    case 24: // secp384r1
+    case 22: // secp256k1
+    case 21: // secp224r1
+    case 20: // secp224k1
+    case 19: // secp192r1
+    case 18: // secp192k1
+    default:
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Curve is not supported") );
+        return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE ;
+    }
+
+    ecPub->qxLen = SeosCryptoKey_Size_ECC_MAX;
+    ecPub->qyLen = SeosCryptoKey_Size_ECC_MAX;
+    if (ecPub->qyLen < ssl->handshake->ecdh.primeLen
+        || ecPub->qxLen < ssl->handshake->ecdh.primeLen)
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 1, ("Buffer too small for ECDH curve point") );
+        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+    }
+
+    if (ssl_read_curve_point(p, end, ssl->handshake->ecdh.primeLen, ecPub->qxBytes,
+                             &ecPub->qxLen, ecPub->qyBytes, &ecPub->qyLen))
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Could not parse server ECDH point param") );
+        return MBEDTLS_ERR_DHM_BAD_INPUT_DATA ;
+    }
+
+    MBEDTLS_SSL_DEBUG_BUF(3, "ECDH x coord of server's point", ecPub->qxBytes,
+                          ecPub->qxLen);
+    MBEDTLS_SSL_DEBUG_BUF(3, "ECDH y coord of server's point", ecPub->qyBytes,
+                          ecPub->qyLen);
+
+    if ((err = SeosCryptoApi_keyImport(ssl->cryptoCtx, &ssl->handshake->pubKey,
+                                       NULL, &keyData)) != SEOS_SUCCESS)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyImport" ), err );
+        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+    }
+
+    return 0;
+}
+#else
 #if defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED) ||                     \
     defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) ||                   \
     defined(MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED) ||                     \
@@ -2187,6 +2359,7 @@ static int ssl_parse_server_ecdh_params( mbedtls_ssl_context *ssl,
 #endif /* MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED ||
           MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED ||
           MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED */
+#endif /* USE_SEOS_CRYPTO */
 
 #if defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED)
 static int ssl_parse_server_psk_hint( mbedtls_ssl_context *ssl,
@@ -2509,6 +2682,7 @@ start_processing:
     end = ssl->in_msg + ssl->in_hslen;
     MBEDTLS_SSL_DEBUG_BUF( 3,   "server key exchange", p, end - p );
 
+#if !defined(USE_SEOS_CRYPTO)
 #if defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED)
     if( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_PSK ||
         ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_RSA_PSK ||
@@ -2524,7 +2698,31 @@ start_processing:
         }
     } /* FALLTROUGH */
 #endif /* MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED */
+#endif /* !USE_SEOS_CRYPTO */
 
+#if defined(USE_SEOS_CRYPTO)
+    if( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA )
+    {
+        if( ssl_parse_server_dh_params( ssl, &p, end ) != 0 )
+        {
+            MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
+            mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
+                                            MBEDTLS_SSL_ALERT_MSG_ILLEGAL_PARAMETER );
+            return( MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
+        }
+    }
+    else if( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA )
+    {
+        if( ssl_parse_server_ecdh_params( ssl, &p, end ) != 0 )
+        {
+            MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
+            mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
+                                            MBEDTLS_SSL_ALERT_MSG_ILLEGAL_PARAMETER );
+            return( MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
+        }
+    }
+    else
+#else
 #if defined(MBEDTLS_KEY_EXCHANGE_PSK_ENABLED) ||                       \
     defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)
     if( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_PSK ||
@@ -2583,6 +2781,7 @@ start_processing:
     }
     else
 #endif /* MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED */
+#endif /* USE_SEOS_CRYPTO */
     {
         MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
         return( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
@@ -2974,6 +3173,78 @@ static int ssl_parse_server_hello_done( mbedtls_ssl_context *ssl )
     return( 0 );
 }
 
+#if defined(USE_SEOS_CRYPTO)
+static int
+ssl_write_ecdh_public_key(mbedtls_ssl_context*    ssl,
+                          SeosCryptoKey_Data*     keyData,
+                          unsigned char*          out_msg,
+                          size_t*                 i,
+                          size_t*                 n)
+{
+    size_t plen;
+    SeosCryptoKey_SECP256r1Pub* ecPub = &keyData->data.secp256r1.pub;
+
+    if (ssl->handshake->ecdh.pointFormat == MBEDTLS_ECP_PF_UNCOMPRESSED)
+    {
+        out_msg[5] = 0x04;
+        memcpy(&out_msg[6], ecPub->qxBytes, ecPub->qxLen);
+        memcpy(&out_msg[6 + ecPub->qxLen], ecPub->qyBytes, ecPub->qyLen);
+
+        plen = ecPub->qxLen + ecPub->qyLen + 1;
+
+        MBEDTLS_SSL_DEBUG_BUF(3, "ECDH: x coord of client's public point", ecPub->qxBytes, ecPub->qxLen);
+        MBEDTLS_SSL_DEBUG_BUF(3, "ECDH: y coord of client's public point", ecPub->qyBytes, ecPub->qyLen);
+    }
+    else if (ssl->handshake->ecdh.pointFormat == MBEDTLS_ECP_PF_COMPRESSED)
+    {
+        // Compressed representation just needs the X coordinate and the SIGN
+        // bit of the Y coord, so it can be recomputed from X via the curve
+        // equation..
+        out_msg[5] = 0x02 | (ecPub->qyBytes[0] & 0x01);
+        memcpy(&out_msg[6], ecPub->qxBytes, ecPub->qxLen);
+
+        plen = ecPub->qxLen + 1;
+
+        MBEDTLS_SSL_DEBUG_BUF(3, "ECDH: x coord of client's public point (compressed)",
+                              ecPub->qxBytes, ecPub->qxLen);
+    }
+    else
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported ECDH point format: %02x",
+                                    ssl->handshake->ecdh.pointFormat ) );
+        return MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE;
+    }
+
+    out_msg[4] = plen;
+    *i = 4;
+    *n = plen + 1;
+
+    return 0;
+}
+
+static int
+ssl_write_dh_public_key(mbedtls_ssl_context*    ssl,
+                        SeosCryptoKey_Data*     keyData,
+                        unsigned char*          out_msg,
+                        size_t*                 i,
+                        size_t*                 n)
+{
+    SeosCryptoKey_DHPub* dhPub = &keyData->data.dh.pub;
+
+    MBEDTLS_SSL_DEBUG_BUF(3, "DHM: GX ", dhPub->gxBytes, dhPub->gxLen);
+
+    // Write public param back to server
+    out_msg[4] = (unsigned char)( dhPub->params.pLen >> 8 );
+    out_msg[5] = (unsigned char)( dhPub->params.pLen      );
+    memcpy(&out_msg[6], dhPub->gxBytes, dhPub->params.pLen);
+
+    *n = dhPub->params.pLen;
+    *i = 6;
+
+    return 0;
+}
+#endif /* USE_SEOS_CRYPTO */
+
 static int ssl_write_client_key_exchange( mbedtls_ssl_context *ssl )
 {
     int ret;
@@ -2984,38 +3255,46 @@ static int ssl_write_client_key_exchange( mbedtls_ssl_context *ssl )
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> write client key exchange" ) );
 
 #if defined(USE_SEOS_CRYPTO)
-    if ( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA )
+    if ( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA ||
+         ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA )
     {
         seos_err_t err;
         SeosCrypto_KeyHandle prvKey, pubKey;
+        SeosCrypto_AgreementHandle keyEx;
+        SeosCryptoAgreement_Algorithm algEx;
         static SeosCryptoKey_Data keyData;
-        static SeosCryptoKey_Spec keySpec =
-        {
-            .type = SeosCryptoKey_SpecType_PARAMS,
-            .key.type = SeosCryptoKey_Type_DH_PRV,
+        static SeosCryptoKey_Spec keySpec = {
             .key.attribs.flags = SeosCryptoKey_Flags_EXPORTABLE_RAW
         };
-        SeosCryptoKey_DHParams* dhParams = &keySpec.key.params.dh;
-        SeosCryptoKey_DHPub* dhPub = &keyData.data.dh.pub;
-        size_t sz = sizeof(SeosCryptoKey_DHParams);
-        SeosCrypto_AgreementHandle keyEx;
 
         ret = 0;
 
-        /*
-         * DHM key exchange -- send G^X mod P
-         */
-
-        // Extract public server params from public key into generator spec
-        // and generate CLIENT private key based on the public params
-        if ((err = SeosCryptoApi_keyGetParams(ssl->cryptoCtx, ssl->handshake->pubKey,
-                                              dhParams, &sz)) != SEOS_SUCCESS)
+        // Set up the key generation spec for our private key
+        if ( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA )
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyGetParams" ), err );
-            ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-            goto err0;
+            // Extract public server params (P,G) from public key into generator spec
+            size_t sz = sizeof(SeosCryptoKey_DHParams);
+            if ((err = SeosCryptoApi_keyGetParams(ssl->cryptoCtx, ssl->handshake->pubKey,
+                                                  &keySpec.key.params.dh, &sz)) != SEOS_SUCCESS)
+            {
+                MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyGetParams" ), err );
+                ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+                goto err0;
+            }
+            keySpec.type        = SeosCryptoKey_SpecType_PARAMS;
+            keySpec.key.type    = SeosCryptoKey_Type_DH_PRV;
+            algEx               = SeosCryptoAgreement_Algorithm_DH;
+        }
+        else if (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA )
+        {
+            // We only support one curve right now, so there is no need to extract
+            // any params or anything of that sort..
+            keySpec.type        = SeosCryptoKey_SpecType_BITS;
+            keySpec.key.type    = SeosCryptoKey_Type_SECP256R1_PRV;
+            algEx               = SeosCryptoAgreement_Algorithm_ECDH;
         }
 
+        // Generate private key and make public key from it
         if ((err = SeosCryptoApi_keyGenerate(ssl->cryptoCtx, &prvKey,
                                              &keySpec)) != SEOS_SUCCESS)
         {
@@ -3023,7 +3302,6 @@ static int ssl_write_client_key_exchange( mbedtls_ssl_context *ssl )
             ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
             goto err0;
         }
-        // Now compute the public part of the new private key, use same key attribs
         if ((err = SeosCryptoApi_keyMakePublic(ssl->cryptoCtx, &pubKey, prvKey,
                                                &keySpec.key.attribs)) != SEOS_SUCCESS)
         {
@@ -3040,26 +3318,27 @@ static int ssl_write_client_key_exchange( mbedtls_ssl_context *ssl )
             goto err2;
         }
 
-        MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: GX ", dhPub->gxBytes, dhPub->gxLen );
+        // Write exported key data to TLS buffer
+        if ( ( (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA) &&
+               (ret = ssl_write_dh_public_key(ssl, &keyData, ssl->out_msg, &i, &n)) ) ||
+             ( (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA) &&
+               (ret = ssl_write_ecdh_public_key(ssl, &keyData, ssl->out_msg, &i, &n)) ) )
+        {
+            goto err2;
+        }
 
-        // Write public param back to server
-        n = dhPub->params.pLen;
-        ssl->out_msg[4] = (unsigned char)( n >> 8 );
-        ssl->out_msg[5] = (unsigned char)( n      );
-        i = 6;
-        memcpy(&ssl->out_msg[i], dhPub->gxBytes, n);
-
-        // Based on the newly derived private key of the CLIENT and the public ke
+        // Based on the newly derived private key of the CLIENT and the public key
         // of the server agree on a shared secret!
         ssl->handshake->pmslen = MBEDTLS_PREMASTER_SIZE;
-        if ((err = SeosCryptoApi_agreementInit(ssl->cryptoCtx, &keyEx,
-                                               SeosCryptoAgreement_Algorithm_DH, prvKey)) != SEOS_SUCCESS)
+        if ((err = SeosCryptoApi_agreementInit(ssl->cryptoCtx, &keyEx, algEx,
+                                               prvKey)) != SEOS_SUCCESS)
         {
             MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_agreementInit" ), err );
             ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
             goto err2;
         }
-        if ((err = SeosCryptoApi_agreementAgree(ssl->cryptoCtx, keyEx, ssl->handshake->pubKey,
+        if ((err = SeosCryptoApi_agreementAgree(ssl->cryptoCtx, keyEx,
+                                                ssl->handshake->pubKey,
                                                 ssl->handshake->premaster, &ssl->handshake->pmslen)) != SEOS_SUCCESS)
         {
             MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_agreementAgree" ), err );
