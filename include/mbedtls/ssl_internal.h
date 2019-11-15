@@ -373,7 +373,8 @@ struct mbedtls_ssl_handshake_params
 #endif
 #if defined(MBEDTLS_SSL_PROTO_TLS1_2)
 #if defined(USE_SEOS_CRYPTO)
-    SeosCrypto_DigestHandle fin_seos;
+    SeosCrypto_DigestHandle sessionHash;
+    SeosCrypto_KeyHandle    pubKey;
 #endif
 #if defined(MBEDTLS_SHA256_C)
     mbedtls_sha256_context fin_sha256;

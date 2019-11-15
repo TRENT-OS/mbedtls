@@ -1980,6 +1980,91 @@ static int ssl_parse_server_hello( mbedtls_ssl_context *ssl )
     return( 0 );
 }
 
+#if defined(USE_SEOS_CRYPTO)
+static size_t
+ssl_copy_bignum(unsigned char    **p,
+                unsigned char    *end,
+                void*            buf,
+                size_t           sz)
+{
+    size_t n;
+
+    if( end - *p < 2 )
+        return( MBEDTLS_ERR_DHM_BAD_INPUT_DATA );
+
+    // First two bytes are length of big num
+    n = ( (*p)[0] << 8 ) | (*p)[1];
+    (*p) += 2;
+
+    if(n > sz || n > (size_t)( end - *p ))
+        return( MBEDTLS_ERR_DHM_BAD_INPUT_DATA );
+
+    if (n > 0)
+    {
+        memcpy(buf, *p, n);
+        (*p) += n;
+    }
+
+    return n;
+}
+
+static int ssl_parse_server_dh_params( mbedtls_ssl_context* ssl,
+                                       unsigned char** p,
+                                       unsigned char* end )
+{
+    seos_err_t err;
+    static SeosCryptoKey_Data keyData =
+    {
+        .type = SeosCryptoKey_Type_DH_PUB,
+        .attribs.flags = SeosCryptoKey_Flags_EXPORTABLE_RAW
+    };
+    SeosCryptoKey_DHPub* dhPub = &keyData.data.dh.pub;
+
+    /*
+     * Ephemeral DH parameters:
+     *
+     * struct {
+     *     opaque dh_p<1..2^16-1>;
+     *     opaque dh_g<1..2^16-1>;
+     *     opaque dh_Ys<1..2^16-1>;
+     * } ServerDHParams;
+     */
+    if ( (dhPub->params.pLen = ssl_read_bignum(p, end, dhPub->params.pBytes,
+                                               SeosCryptoKey_Size_DH_MAX)) <= 0 ||
+         (dhPub->params.gLen = ssl_read_bignum(p, end, dhPub->params.gBytes,
+                                               SeosCryptoKey_Size_DH_MAX)) <= 0 ||
+         (dhPub->gxLen       = ssl_read_bignum(p, end, dhPub->gxBytes,
+                                               SeosCryptoKey_Size_DH_MAX)) <= 0 )
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Could not parse server DHM params") );
+        return MBEDTLS_ERR_DHM_BAD_INPUT_DATA ;
+    }
+
+    if (dhPub->params.pLen * 8 < ssl->conf->dhm_min_bitlen)
+    {
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "DHM prime too short: %d < %d",
+                                    dhPub->params.pLen * 8,
+                                    ssl->conf->dhm_min_bitlen ) );
+        return MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE;
+    }
+
+    if ((err = SeosCryptoApi_keyImport(ssl->cryptoCtx, &ssl->handshake->pubKey,
+                                       NULL, &keyData)) != SEOS_SUCCESS)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyImport" ), err );
+        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+    }
+
+    MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: P ", dhPub->params.pBytes, dhPub->params.pLen );
+    MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: G ", dhPub->params.gBytes, dhPub->params.gLen );
+    // Note: The view here is that the public param is "theirs", that is why here it
+    // is called GY. We only have "our" keys (public / private), where we have the
+    // secret param X and thus GX as name for the public value!
+    MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: GY", dhPub->gxBytes, dhPub->gxLen );
+
+    return ( 0 );
+}
+#else
 #if defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED) ||                       \
     defined(MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED)
 static int ssl_parse_server_dh_params( mbedtls_ssl_context *ssl, unsigned char **p,
@@ -2018,6 +2103,7 @@ static int ssl_parse_server_dh_params( mbedtls_ssl_context *ssl, unsigned char *
 }
 #endif /* MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED ||
           MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED */
+#endif /* USE_SEOS_CRYPTO */
 
 #if defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED) ||                     \
     defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) ||                   \
@@ -2897,6 +2983,111 @@ static int ssl_write_client_key_exchange( mbedtls_ssl_context *ssl )
 
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> write client key exchange" ) );
 
+#if defined(USE_SEOS_CRYPTO)
+    if ( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA )
+    {
+        seos_err_t err;
+        SeosCrypto_KeyHandle prvKey, pubKey;
+        static SeosCryptoKey_Data keyData;
+        static SeosCryptoKey_Spec keySpec =
+        {
+            .type = SeosCryptoKey_SpecType_PARAMS,
+            .key.type = SeosCryptoKey_Type_DH_PRV,
+            .key.attribs.flags = SeosCryptoKey_Flags_EXPORTABLE_RAW
+        };
+        SeosCryptoKey_DHParams* dhParams = &keySpec.key.params.dh;
+        SeosCryptoKey_DHPub* dhPub = &keyData.data.dh.pub;
+        size_t sz = sizeof(SeosCryptoKey_DHParams);
+        SeosCrypto_AgreementHandle keyEx;
+
+        ret = 0;
+
+        /*
+         * DHM key exchange -- send G^X mod P
+         */
+
+        // Extract public server params from public key into generator spec
+        // and generate CLIENT private key based on the public params
+        if ((err = SeosCryptoApi_keyGetParams(ssl->cryptoCtx, ssl->handshake->pubKey,
+                                              dhParams, &sz)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyGetParams" ), err );
+            ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+            goto err0;
+        }
+
+        if ((err = SeosCryptoApi_keyGenerate(ssl->cryptoCtx, &prvKey,
+                                             &keySpec)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyGenerate" ), err );
+            ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+            goto err0;
+        }
+        // Now compute the public part of the new private key, use same key attribs
+        if ((err = SeosCryptoApi_keyMakePublic(ssl->cryptoCtx, &pubKey, prvKey,
+                                               &keySpec.key.attribs)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyMakePublic" ), err );
+            ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+            goto err1;
+        }
+        // Export public key
+        if ((err = SeosCryptoApi_keyExport(ssl->cryptoCtx, pubKey, NULL,
+                                           &keyData)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyExport" ), err );
+            ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+            goto err2;
+        }
+
+        MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: GX ", dhPub->gxBytes, dhPub->gxLen );
+
+        // Write public param back to server
+        n = dhPub->params.pLen;
+        ssl->out_msg[4] = (unsigned char)( n >> 8 );
+        ssl->out_msg[5] = (unsigned char)( n      );
+        i = 6;
+        memcpy(&ssl->out_msg[i], dhPub->gxBytes, n);
+
+        // Based on the newly derived private key of the CLIENT and the public ke
+        // of the server agree on a shared secret!
+        ssl->handshake->pmslen = MBEDTLS_PREMASTER_SIZE;
+        if ((err = SeosCryptoApi_agreementInit(ssl->cryptoCtx, &keyEx,
+                                               SeosCryptoAgreement_Algorithm_DH, prvKey)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_agreementInit" ), err );
+            ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+            goto err2;
+        }
+        if ((err = SeosCryptoApi_agreementAgree(ssl->cryptoCtx, keyEx, ssl->handshake->pubKey,
+                                                ssl->handshake->premaster, &ssl->handshake->pmslen)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_agreementAgree" ), err );
+            ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+        }
+
+        if ((err = SeosCryptoApi_agreementFree(ssl->cryptoCtx, keyEx)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_agreementFree" ), err );
+        }
+err2:
+        if ((err = SeosCryptoApi_keyFree(ssl->cryptoCtx, pubKey)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyFree" ), err );
+        }
+err1:
+        if ((err = SeosCryptoApi_keyFree(ssl->cryptoCtx, prvKey)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_keyFree" ), err );
+        }
+err0:
+        if (ret)
+        {
+            return ret;
+        }
+    }
+    else
+#else
 #if defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED)
     if( ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA )
     {
@@ -3151,6 +3342,7 @@ ecdh_calc_secret:
     }
     else
 #endif /* MBEDTLS_KEY_EXCHANGE_RSA_ENABLED */
+#endif /* USE_SEOS_CRYPTO */
     {
         ((void) ciphersuite_info);
         MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
