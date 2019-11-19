@@ -33,6 +33,8 @@
 #include "x509.h"
 #include "x509_crl.h"
 
+typedef struct mbedtls_ssl_context mbedtls_ssl_context;
+
 /**
  * \addtogroup x509_module
  * \{
@@ -383,7 +385,9 @@ int mbedtls_x509_crt_verify_info( char *buf, size_t size, const char *prefix,
  *                 in case of a fatal error encountered during the
  *                 verification process.
  */
-int mbedtls_x509_crt_verify( mbedtls_x509_crt *crt,
+int mbedtls_x509_crt_verify(
+                     mbedtls_ssl_context *ssl,
+                     mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
                      const char *cn, uint32_t *flags,
@@ -417,7 +421,9 @@ int mbedtls_x509_crt_verify( mbedtls_x509_crt *crt,
  *                 or another error in case of a fatal error encountered
  *                 during the verification process.
  */
-int mbedtls_x509_crt_verify_with_profile( mbedtls_x509_crt *crt,
+int mbedtls_x509_crt_verify_with_profile(
+                     mbedtls_ssl_context *ssl,
+                     mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
                      const mbedtls_x509_crt_profile *profile,
@@ -447,7 +453,9 @@ int mbedtls_x509_crt_verify_with_profile( mbedtls_x509_crt *crt,
  * \return         #MBEDTLS_ERR_ECP_IN_PROGRESS if maximum number of
  *                 operations was reached: see \c mbedtls_ecp_set_max_ops().
  */
-int mbedtls_x509_crt_verify_restartable( mbedtls_x509_crt *crt,
+int mbedtls_x509_crt_verify_restartable(
+                     mbedtls_ssl_context *ssl,
+                     mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
                      const mbedtls_x509_crt_profile *profile,

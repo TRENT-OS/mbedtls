@@ -6072,6 +6072,7 @@ crt_verify:
          * Main check: verify certificate
          */
         ret = mbedtls_x509_crt_verify_restartable(
+                                ssl,
                                 ssl->session_negotiate->peer_cert,
                                 ca_chain, ca_crl,
                                 ssl->conf->cert_profile,
