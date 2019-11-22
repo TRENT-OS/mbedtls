@@ -19,6 +19,18 @@
 extern "C" {
 #endif
 
+// ------------------------------- x509_crt.c ----------------------------------
+
+int
+seos_check_signature(mbedtls_ssl_context*   ssl,
+                     void*                  pk_ctx,
+                     mbedtls_pk_type_t      sig_type,
+                     mbedtls_md_type_t      hash_type,
+                     const void*            cert,
+                     size_t                 cert_len,
+                     const void*            sig,
+                     size_t                 sig_len);
+
 // -------------------------------- ssl_tls.c ----------------------------------
 
 int

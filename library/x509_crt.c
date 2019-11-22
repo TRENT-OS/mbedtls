@@ -39,11 +39,13 @@
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 
+#if defined(USE_SEOS_CRYPTO)
+#include "mbedtls/seos.h"
+#endif
+
 #include "mbedtls/x509_crt.h"
 #include "mbedtls/oid.h"
 #include "mbedtls/platform_util.h"
-#include "mbedtls/debug.h"
-#include "mbedtls/rsa.h"
 
 #include <string.h>
 
@@ -1886,203 +1888,10 @@ static int x509_crt_verifycrl( mbedtls_x509_crt *crt, mbedtls_x509_crt *ca,
 }
 #endif /* MBEDTLS_X509_CRL_PARSE_C */
 
-#if defined(USE_SEOS_CRYPTO)
-static int
-x509_hash_cert( mbedtls_ssl_context* ssl,
-                mbedtls_md_type_t   hash_alg,
-                const void*         cert,
-                const size_t        cert_len,
-                void*               hash,
-                size_t*             hash_len)
-{
-    int ret;
-    seos_err_t err;
-    SeosCrypto_DigestHandle digHandle;
-    size_t cert_offs, cert_left, next_len;
-
-    switch (hash_alg)
-    {
-    // The mbedTLS hash identifiers and the SeosCryptoDigest_Algorithms are
-    // identical so we can simply use those
-    case MBEDTLS_MD_MD5:
-    case MBEDTLS_MD_SHA256:
-        break;
-    default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported digest algorithm for cert: %i",
-                                    hash_alg ) );
-        return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-    }
-
-    ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    if ((err = SeosCryptoApi_digestInit(ssl->cryptoCtx, &digHandle,
-                                        hash_alg)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_digestInit", err );
-        goto err0;
-    }
-
-    // We may need to process the certificate in blocks, as it may be too big for the
-    // current limitation of the crypto api...
-    cert_offs = 0;
-    cert_left = cert_len;
-    next_len  = cert_left > SeosCrypto_Size_DATAPORT ?
-                SeosCrypto_Size_DATAPORT : cert_left;
-    while (cert_left > 0)
-    {
-        if ((err = SeosCryptoApi_digestProcess(ssl->cryptoCtx, digHandle,
-                                               cert + cert_offs, next_len)) != SEOS_SUCCESS)
-        {
-            MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_digestProcess", err );
-            goto err1;
-        }
-        cert_left -= next_len;
-        cert_offs += next_len;
-        next_len   = cert_left > SeosCrypto_Size_DATAPORT ?
-                     SeosCrypto_Size_DATAPORT : cert_left;
-    }
-
-    if ((err = SeosCryptoApi_digestFinalize(ssl->cryptoCtx, digHandle, hash,
-                                            hash_len)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_digestFinalize", err );
-        goto err1;
-    }
-
-    // It went all OK, so no error needed -- still we want to free the digest
-    ret = 0;
-
-err1:
-    if ((err = SeosCryptoApi_digestFree(ssl->cryptoCtx,
-                                        digHandle)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_digestFree", err );
-    }
-err0:
-    return ret;
-}
-
-static int
-x509_export_key( mbedtls_ssl_context*     ssl,
-                 mbedtls_pk_type_t       sig_alg,
-                 void*                   pk_ctx,
-                 SeosCryptoKey_Data*      keyData)
-{
-    int ret;
-
-    keyData->attribs.flags = SeosCryptoKey_Flags_EXPORTABLE_RAW;
-    switch (sig_alg)
-    {
-    case MBEDTLS_PK_RSA:
-    {
-        mbedtls_rsa_context* rsa_ctx = (mbedtls_rsa_context*) pk_ctx;
-        SeosCryptoKey_RSAPub* pubKey = &keyData->data.rsa.pub;
-        // Make sure we can actually handle the key
-        if (rsa_ctx->len > SeosCryptoKey_Size_RSA_MAX)
-        {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "RSA key size not supported: %i", rsa_ctx->len ) );
-            return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-        }
-        // Transform the public key into a SeosCryptoKey_Data so we can use it
-        // for our own purposes.
-        keyData->type = SeosCryptoKey_Type_RSA_PUB;
-        pubKey->nLen = rsa_ctx->len;
-        pubKey->eLen = rsa_ctx->len;
-        if ((ret = mbedtls_rsa_export_raw(pk_ctx, pubKey->nBytes, pubKey->nLen, NULL, 0,
-                                          NULL, 0, NULL, 0, pubKey->eBytes, pubKey->eLen)) != 0)
-        {
-            MBEDTLS_SSL_DEBUG_RET( 1, "mbedtls_rsa_export_raw", ret );
-            return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-        }
-        break;
-    }
-    default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported signature algorithm for cert: %i",
-                                    sig_alg ) );
-        return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-    }
-
-    return 0;
-}
-
-static int x509_crt_check_signature( mbedtls_ssl_context* ssl,
-                                     const mbedtls_x509_crt* child,
-                                     mbedtls_x509_crt* parent,
-                                     mbedtls_x509_crt_restart_ctx* rs_ctx )
-{
-    int ret;
-    seos_err_t err;
-    SeosCryptoKey_Data keyData;
-    SeosCrypto_KeyHandle pubKey;
-    SeosCrypto_SignatureHandle sigHandle;
-    unsigned char hash[MBEDTLS_MD_MAX_SIZE];
-    size_t hash_size = sizeof(hash);
-
-    if ((ret = x509_hash_cert(ssl, child->sig_md, child->tbs.p, child->tbs.len,
-                              hash, &hash_size)) != 0)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "x509_hash_cert", ret );
-        return ret;
-    }
-
-    MBEDTLS_SSL_DEBUG_BUF( 1, "hash of cert", hash, hash_size );
-
-    if ((ret = x509_export_key(ssl, child->sig_pk, parent->pk.pk_ctx,
-                               &keyData)) != 0)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "x509_export_key", ret );
-        return ret;
-    }
-
-    if ((err = SeosCryptoApi_keyImport(ssl->cryptoCtx, &pubKey, NULL,
-                                       &keyData)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyImport", err );
-        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    }
-
-    ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    switch (keyData.type)
-    {
-    case SeosCryptoKey_Type_RSA_PUB:
-        if ((err = SeosCryptoApi_signatureInit(ssl->cryptoCtx, &sigHandle,
-                                               SeosCryptoSignature_Algorithm_RSA_PKCS1_V15,
-                                               child->sig_md, NULL, pubKey)) != SEOS_SUCCESS)
-        {
-            MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureInit", err );
-            goto err0;
-        }
-        break;
-    default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported key extracted from cert: %i",
-                                    keyData.type ) );
-        goto err0;
-    }
-
-    if ((err = SeosCryptoApi_signatureVerify(ssl->cryptoCtx, sigHandle, hash,
-                                             hash_size, child->sig.p, child->sig.len)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureVerify", err );
-        goto err1;
-    }
-
-    // No error, but still clean up signature and key!
-    ret = 0;
-
-err1:
-    if ((err = SeosCryptoApi_signatureFree(ssl->cryptoCtx,
-                                           sigHandle)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureInit", err );
-    }
-err0:
-    if ((err = SeosCryptoApi_keyFree(ssl->cryptoCtx, pubKey)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyFree", err );
-    }
-
-    return ret;
-}
-#else
+#if !defined(USE_SEOS_CRYPTO)
+/*
+ * Check the signature of a certificate by its parent
+ */
 static int x509_crt_check_signature( mbedtls_ssl_context *ssl,
                                      const mbedtls_x509_crt *child,
                                      mbedtls_x509_crt *parent,
@@ -2253,7 +2062,12 @@ static int x509_crt_find_parent_in(
 #if defined(MBEDTLS_ECDSA_C) && defined(MBEDTLS_ECP_RESTARTABLE)
 check_signature:
 #endif
+
+#if defined(USE_SEOS_CRYPTO)
+        ret = seos_check_signature(ssl, parent->pk.pk_ctx, child->sig_pk, child->sig_md, child->tbs.p, child->tbs.len, child->sig.p, child->sig.len);
+#else
         ret = x509_crt_check_signature( ssl, child, parent, rs_ctx );
+#endif
 
 #if defined(MBEDTLS_ECDSA_C) && defined(MBEDTLS_ECP_RESTARTABLE)
         if( rs_ctx != NULL && ret == MBEDTLS_ERR_ECP_IN_PROGRESS )
@@ -2286,13 +2100,15 @@ check_signature:
             continue;
         }
 
-        *r_parent = parent;
-        *r_signature_is_good = signature_is_good;
-
         break;
     }
 
-    if( parent == NULL )
+    if( parent != NULL )
+    {
+        *r_parent = parent;
+        *r_signature_is_good = signature_is_good;
+    }
+    else
     {
         *r_parent = fallback_parent;
         *r_signature_is_good = fallback_signature_is_good;
