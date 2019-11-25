@@ -480,9 +480,8 @@ struct mbedtls_ssl_transform
 #endif
 
 #if defined(USE_SEOS_CRYPTO)
-    bool                        keys_in_use;
-    SeosCrypto_KeyHandle        key_enc;
-    SeosCrypto_KeyHandle        key_dec;
+    SeosCrypto_KeyHandle        encKey;
+    SeosCrypto_KeyHandle        decKey;
 #endif
 };
 
