@@ -19,6 +19,24 @@
 extern "C" {
 #endif
 
+// ------------------------------- ssl_cli.c ----------------------------------
+
+int
+seos_parse_server_ecdh_params(mbedtls_ssl_context*  ssl,
+                              unsigned char**       p,
+                              unsigned char*        end);
+
+int
+seos_parse_server_dh_params(mbedtls_ssl_context*    ssl,
+                            unsigned char**         p,
+                            unsigned char*          end);
+
+int
+seos_exchange_key(mbedtls_ssl_context*          ssl,
+                  mbedtls_key_exchange_type_t   ex_type,
+                  size_t*                       i,
+                  size_t*                       n);
+
 // ------------------------------- x509_crt.c ----------------------------------
 
 int
