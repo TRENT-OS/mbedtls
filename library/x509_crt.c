@@ -2064,7 +2064,7 @@ check_signature:
 #endif
 
 #if defined(USE_SEOS_CRYPTO)
-        ret = seos_check_signature(ssl, parent->pk.pk_ctx, child->sig_pk, child->sig_md, child->tbs.p, child->tbs.len, child->sig.p, child->sig.len);
+        ret = seos_verify_cert_signature(ssl, parent->pk.pk_ctx, child->sig_pk, child->sig_md, child->tbs.p, child->tbs.len, child->sig.p, child->sig.len);
 #else
         ret = x509_crt_check_signature( ssl, child, parent, rs_ctx );
 #endif

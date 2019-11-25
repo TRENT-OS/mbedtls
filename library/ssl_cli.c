@@ -2550,7 +2550,9 @@ start_processing:
         mbedtls_pk_type_t pk_alg = MBEDTLS_PK_NONE;
         unsigned char *params = ssl->in_msg + mbedtls_ssl_hs_hdr_len( ssl );
         size_t params_len = p - params;
+#if !defined(USE_SEOS_CRYPTO)
         void *rs_ctx = NULL;
+#endif
 
         /*
          * Handle the digitally-signed structure
@@ -2678,6 +2680,18 @@ start_processing:
             rs_ctx = &ssl->handshake->ecrs_ctx.pk;
 #endif
 
+#if defined(USE_SEOS_CRYPTO)
+        if( ( ret = seos_verify_hash_signature(ssl,
+                                          ssl->session_negotiate->peer_cert->pk.pk_ctx,
+                                          pk_alg, md_alg,
+                                          hash, hashlen,
+                                          p, sig_len ) ) != 0 ) {
+            mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
+                                                MBEDTLS_SSL_ALERT_MSG_DECRYPT_ERROR );
+            MBEDTLS_SSL_DEBUG_RET( 1, "seos_verify_hash_signature", ret );
+            return ret;
+        }
+#else
         if( ( ret = mbedtls_pk_verify_restartable(
                         &ssl->session_negotiate->peer_cert->pk,
                         md_alg, hash, hashlen, p, sig_len, rs_ctx ) ) != 0 )
@@ -2694,6 +2708,7 @@ start_processing:
 #endif
             return( ret );
         }
+#endif /* USE_SEOS_CRYPTO */
     }
 #endif /* MBEDTLS_KEY_EXCHANGE__WITH_SERVER_SIGNATURE__ENABLED */
 

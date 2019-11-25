@@ -452,6 +452,121 @@ seos_parse_server_dh_params(mbedtls_ssl_context*    ssl,
     return ( 0 );
 }
 
+static int
+export_key(mbedtls_ssl_context*     ssl,
+           mbedtls_pk_type_t        sig_alg,
+           void*                    pk_ctx,
+           SeosCryptoKey_Data*      keyData)
+{
+    int ret;
+
+    keyData->attribs.flags = SeosCryptoKey_Flags_EXPORTABLE_RAW;
+    switch (sig_alg)
+    {
+    case MBEDTLS_PK_RSA:
+    {
+        mbedtls_rsa_context* rsa_ctx = (mbedtls_rsa_context*) pk_ctx;
+        SeosCryptoKey_RSAPub* pubKey = &keyData->data.rsa.pub;
+        // Make sure we can actually handle the key
+        if (rsa_ctx->len > SeosCryptoKey_Size_RSA_MAX)
+        {
+            MBEDTLS_SSL_DEBUG_MSG( 1, ( "RSA key size not supported: %i", rsa_ctx->len ) );
+            return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
+        }
+        // Transform the public key into a SeosCryptoKey_Data so we can use it
+        // for our own purposes.
+        keyData->type = SeosCryptoKey_Type_RSA_PUB;
+        pubKey->nLen = rsa_ctx->len;
+        pubKey->eLen = rsa_ctx->len;
+        if ((ret = mbedtls_rsa_export_raw(pk_ctx, pubKey->nBytes, pubKey->nLen, NULL, 0,
+                                          NULL, 0, NULL, 0, pubKey->eBytes, pubKey->eLen)) != 0)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, "mbedtls_rsa_export_raw", ret );
+            return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+        }
+        break;
+    }
+    default:
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported signature algorithm for cert: %i",
+                                    sig_alg ) );
+        return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
+    }
+
+    return 0;
+}
+
+int
+seos_verify_hash_signature(mbedtls_ssl_context*     ssl,
+                           void*                    pk_ctx,
+                           mbedtls_pk_type_t        sig_type,
+                           mbedtls_md_type_t        hash_type,
+                           const void*              hash,
+                           size_t                   hash_len,
+                           const void*              sig,
+                           size_t                   sig_len)
+{
+    int ret;
+    seos_err_t err;
+    SeosCryptoKey_Data keyData;
+    SeosCrypto_KeyHandle pubKey;
+    SeosCrypto_SignatureHandle sigHandle;
+
+    if ((ret = export_key(ssl, sig_type, pk_ctx, &keyData)) != 0)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, "export_key", ret );
+        return ret;
+    }
+
+    if ((err = SeosCryptoApi_keyImport(ssl->cryptoCtx, &pubKey, NULL,
+                                       &keyData)) != SEOS_SUCCESS)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyImport", err );
+        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+    }
+
+    ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
+    switch (keyData.type)
+    {
+    case SeosCryptoKey_Type_RSA_PUB:
+        if ((err = SeosCryptoApi_signatureInit(ssl->cryptoCtx, &sigHandle,
+                                               SeosCryptoSignature_Algorithm_RSA_PKCS1_V15,
+                                               hash_type, NULL, pubKey)) != SEOS_SUCCESS)
+        {
+            MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureInit", err );
+            goto err0;
+        }
+        break;
+    default:
+        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported key extracted from cert: %i",
+                                    keyData.type ) );
+        goto err0;
+    }
+
+    if ((err = SeosCryptoApi_signatureVerify(ssl->cryptoCtx, sigHandle, hash,
+                                             hash_len, sig, sig_len)) != SEOS_SUCCESS)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureVerify", err );
+        goto err1;
+    }
+
+    // No error, but still clean up signature and key!
+    ret = 0;
+
+err1:
+    if ((err = SeosCryptoApi_signatureFree(ssl->cryptoCtx,
+                                           sigHandle)) != SEOS_SUCCESS)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureInit", err );
+    }
+err0:
+    if ((err = SeosCryptoApi_keyFree(ssl->cryptoCtx, pubKey)) != SEOS_SUCCESS)
+    {
+        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyFree", err );
+    }
+
+    return ret;
+}
+
 // ------------------------------- x509_crt.c ----------------------------------
 
 static int
@@ -528,129 +643,30 @@ err0:
     return ret;
 }
 
-static int
-export_key(mbedtls_ssl_context*     ssl,
-           mbedtls_pk_type_t        sig_alg,
-           void*                    pk_ctx,
-           SeosCryptoKey_Data*      keyData)
-{
-    int ret;
-
-    keyData->attribs.flags = SeosCryptoKey_Flags_EXPORTABLE_RAW;
-    switch (sig_alg)
-    {
-    case MBEDTLS_PK_RSA:
-    {
-        mbedtls_rsa_context* rsa_ctx = (mbedtls_rsa_context*) pk_ctx;
-        SeosCryptoKey_RSAPub* pubKey = &keyData->data.rsa.pub;
-        // Make sure we can actually handle the key
-        if (rsa_ctx->len > SeosCryptoKey_Size_RSA_MAX)
-        {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "RSA key size not supported: %i", rsa_ctx->len ) );
-            return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-        }
-        // Transform the public key into a SeosCryptoKey_Data so we can use it
-        // for our own purposes.
-        keyData->type = SeosCryptoKey_Type_RSA_PUB;
-        pubKey->nLen = rsa_ctx->len;
-        pubKey->eLen = rsa_ctx->len;
-        if ((ret = mbedtls_rsa_export_raw(pk_ctx, pubKey->nBytes, pubKey->nLen, NULL, 0,
-                                          NULL, 0, NULL, 0, pubKey->eBytes, pubKey->eLen)) != 0)
-        {
-            MBEDTLS_SSL_DEBUG_RET( 1, "mbedtls_rsa_export_raw", ret );
-            return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-        }
-        break;
-    }
-    default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported signature algorithm for cert: %i",
-                                    sig_alg ) );
-        return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-    }
-
-    return 0;
-}
-
 int
-seos_check_signature(mbedtls_ssl_context*   ssl,
-                     void*                  pk_ctx,
-                     mbedtls_pk_type_t      sig_type,
-                     mbedtls_md_type_t      hash_type,
-                     const void*            cert,
-                     size_t                 cert_len,
-                     const void*            sig,
-                     size_t                 sig_len)
+seos_verify_cert_signature(mbedtls_ssl_context*   ssl,
+                           void*                  pk_ctx,
+                           mbedtls_pk_type_t      sig_type,
+                           mbedtls_md_type_t      hash_type,
+                           const void*            cert,
+                           size_t                 cert_len,
+                           const void*            sig,
+                           size_t                 sig_len)
 {
     int ret;
-    seos_err_t err;
-    SeosCryptoKey_Data keyData;
-    SeosCrypto_KeyHandle pubKey;
-    SeosCrypto_SignatureHandle sigHandle;
     unsigned char hash[MBEDTLS_MD_MAX_SIZE];
     size_t hash_size = sizeof(hash);
 
     if ((ret = hash_cert(ssl, hash_type, cert, cert_len, hash, &hash_size)) != 0)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "x509_hash_cert", ret );
+        MBEDTLS_SSL_DEBUG_RET( 1, "hash_cert", ret );
         return ret;
     }
 
     MBEDTLS_SSL_DEBUG_BUF( 3, "hash of cert", hash, hash_size );
 
-    if ((ret = export_key(ssl, sig_type, pk_ctx, &keyData)) != 0)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "x509_export_key", ret );
-        return ret;
-    }
-
-    if ((err = SeosCryptoApi_keyImport(ssl->cryptoCtx, &pubKey, NULL,
-                                       &keyData)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyImport", err );
-        return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    }
-
-    ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    switch (keyData.type)
-    {
-    case SeosCryptoKey_Type_RSA_PUB:
-        if ((err = SeosCryptoApi_signatureInit(ssl->cryptoCtx, &sigHandle,
-                                               SeosCryptoSignature_Algorithm_RSA_PKCS1_V15,
-                                               hash_type, NULL, pubKey)) != SEOS_SUCCESS)
-        {
-            MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureInit", err );
-            goto err0;
-        }
-        break;
-    default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported key extracted from cert: %i",
-                                    keyData.type ) );
-        goto err0;
-    }
-
-    if ((err = SeosCryptoApi_signatureVerify(ssl->cryptoCtx, sigHandle, hash,
-                                             hash_size, sig, sig_len)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureVerify", err );
-        goto err1;
-    }
-
-    // No error, but still clean up signature and key!
-    ret = 0;
-
-err1:
-    if ((err = SeosCryptoApi_signatureFree(ssl->cryptoCtx,
-                                           sigHandle)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_signatureInit", err );
-    }
-err0:
-    if ((err = SeosCryptoApi_keyFree(ssl->cryptoCtx, pubKey)) != SEOS_SUCCESS)
-    {
-        MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_keyFree", err );
-    }
-
-    return ret;
+    return seos_verify_hash_signature(ssl, pk_ctx, sig_type, hash_type, hash,
+                                      hash_size, sig, sig_len);
 }
 
 // -------------------------------- ssl_tls.c ----------------------------------
