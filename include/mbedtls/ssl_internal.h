@@ -431,9 +431,9 @@ struct mbedtls_ssl_handshake_params
         uint16_t curveId;
     } ecdh;
     // Used to compute hash over session
-    SeosCrypto_DigestHandle sessionHash;
+    SeosCryptoApi_Digest sessionHash;
     // Used to hold the server's public key value (DH or ECDH for now)
-    SeosCrypto_KeyHandle    pubKey;
+    SeosCryptoApi_Key    pubKey;
 #endif /* USE_SEOS_CRYPTO */
 };
 
@@ -480,8 +480,8 @@ struct mbedtls_ssl_transform
 #endif
 
 #if defined(USE_SEOS_CRYPTO)
-    SeosCrypto_KeyHandle        encKey;
-    SeosCrypto_KeyHandle        decKey;
+    SeosCryptoApi_Key        encKey;
+    SeosCryptoApi_Key        decKey;
 #endif
 };
 
