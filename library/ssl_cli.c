@@ -2444,6 +2444,7 @@ start_processing:
                                             MBEDTLS_SSL_ALERT_MSG_ILLEGAL_PARAMETER );
             return( MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
         }
+        ssl->handshake->pubKeyUsed = 1;
     }
     else if(ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA)
     {
@@ -2454,6 +2455,7 @@ start_processing:
                                             MBEDTLS_SSL_ALERT_MSG_ILLEGAL_PARAMETER );
             return( MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
         }
+        ssl->handshake->pubKeyUsed = 1;
     }
     else
     {

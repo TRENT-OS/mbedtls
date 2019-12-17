@@ -1078,6 +1078,8 @@ int mbedtls_ssl_derive_keys( mbedtls_ssl_context *ssl )
             MBEDTLS_SSL_DEBUG_RET( 1, "seos_import_aes_keys", ret );
             return( ret );
         }
+        transform->encKeyUsed = 1;
+        transform->decKeyUsed = 1;
     }
     else
     {
@@ -6075,7 +6077,7 @@ void mbedtls_ssl_reset_checksum( mbedtls_ssl_context *ssl )
 #if defined(USE_SEOS_CRYPTO)
     seos_err_t err;
     // Just re-init the digest for a reset of the handhake
-    if ((err = SeosCryptoApi_Digest_free(ssl->cryptoCtx, ssl->handshake->sessionHash)) != SEOS_SUCCESS)
+    if ((err = SeosCryptoApi_Digest_free(&ssl->handshake->sessionHash)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Digest_free", err );
         return;
@@ -6107,7 +6109,7 @@ static void ssl_update_checksum_start( mbedtls_ssl_context *ssl,
 {
 #if defined(USE_SEOS_CRYPTO)
     seos_err_t err;
-    if ((err = SeosCryptoApi_Digest_process(ssl->cryptoCtx, ssl->handshake->sessionHash,
+    if ((err = SeosCryptoApi_Digest_process(&ssl->handshake->sessionHash,
                              buf, len)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Digest_process", err );
@@ -8879,21 +8881,21 @@ void mbedtls_ssl_transform_free( mbedtls_ssl_context *ssl,
 
 #if defined(USE_SEOS_CRYPTO)
     seos_err_t err;
-    if (NULL != transform->encKey)
+    if (transform->encKeyUsed)
     {
-        if ((err = SeosCryptoApi_Key_free(ssl->cryptoCtx, transform->encKey)) != SEOS_SUCCESS)
+        if ((err = SeosCryptoApi_Key_free(&transform->encKey)) != SEOS_SUCCESS)
         {
             MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Key_free", err );
         }
-        transform->encKey = NULL;
+        transform->encKeyUsed = 0;
     }
-    if (NULL != transform->decKey)
+    if (transform->decKeyUsed)
     {
-        if ((err = SeosCryptoApi_Key_free(ssl->cryptoCtx, transform->decKey)) != SEOS_SUCCESS)
+        if ((err = SeosCryptoApi_Key_free(&transform->decKey)) != SEOS_SUCCESS)
         {
             MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Key_free", err );
         }
-        transform->decKey = NULL;
+        transform->decKeyUsed = 0;
     }
 #endif
 
@@ -8967,19 +8969,17 @@ void mbedtls_ssl_handshake_free( mbedtls_ssl_context *ssl )
 
 #if defined(USE_SEOS_CRYPTO)
     seos_err_t err;
-    if ((err = SeosCryptoApi_Digest_free(ssl->cryptoCtx,
-                                        ssl->handshake->sessionHash)) != SEOS_SUCCESS)
+    if ((err = SeosCryptoApi_Digest_free(&ssl->handshake->sessionHash)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Digest_free", err );
     }
-    if (ssl->handshake->pubKey != NULL)
+    if (ssl->handshake->pubKeyUsed)
     {
-        if ((err = SeosCryptoApi_Key_free(ssl->cryptoCtx,
-                                        ssl->handshake->pubKey)) != SEOS_SUCCESS)
+        if ((err = SeosCryptoApi_Key_free(&ssl->handshake->pubKey)) != SEOS_SUCCESS)
         {
             MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Key_free", err );
         }
-        ssl->handshake->pubKey = NULL;
+        ssl->handshake->pubKeyUsed = 0;
     }
 #else
 #if defined(MBEDTLS_SSL_PROTO_SSL3) || defined(MBEDTLS_SSL_PROTO_TLS1) || \

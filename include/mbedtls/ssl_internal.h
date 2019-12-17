@@ -433,7 +433,8 @@ struct mbedtls_ssl_handshake_params
     // Used to compute hash over session
     SeosCryptoApi_Digest sessionHash;
     // Used to hold the server's public key value (DH or ECDH for now)
-    SeosCryptoApi_Key    pubKey;
+    uint8_t pubKeyUsed;
+    SeosCryptoApi_Key pubKey;
 #endif /* USE_SEOS_CRYPTO */
 };
 
@@ -480,8 +481,10 @@ struct mbedtls_ssl_transform
 #endif
 
 #if defined(USE_SEOS_CRYPTO)
-    SeosCryptoApi_Key        encKey;
-    SeosCryptoApi_Key        decKey;
+    SeosCryptoApi_Key encKey;
+    uint8_t encKeyUsed;
+    SeosCryptoApi_Key decKey;
+    uint8_t decKeyUsed;
 #endif
 };
 
