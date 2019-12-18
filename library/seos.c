@@ -115,7 +115,7 @@ seos_parse_server_ecdh_params(mbedtls_ssl_context* ssl,
                               unsigned char*       end)
 {
     seos_err_t err;
-    static SeosCryptoApi_Key_Data keyData =
+    SeosCryptoApi_Key_Data keyData =
     {
         .type = SeosCryptoApi_Key_TYPE_SECP256R1_PUB,
         .attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW
@@ -266,39 +266,43 @@ seos_exchange_key(mbedtls_ssl_context*        ssl,
     SeosCryptoApi_Key prvKey, pubKey;
     SeosCryptoApi_Agreement keyEx;
     SeosCryptoApi_Agreement_Alg algEx;
-    static SeosCryptoApi_Key_Data keyData;
-    static SeosCryptoApi_Key_Spec keySpec =
+    // We have a stack limit of 4k, so we use this little trick so we can have
+    // a spec and a key data on the stack, which together probably exceed the
+    // current limit..
+    union
     {
-        .key.attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW
-    };
+        SeosCryptoApi_Key_Data data;
+        SeosCryptoApi_Key_Spec spec;
+    } key;
 
     // Set up the key generation spec for our private key
+    key.spec.key.attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW;
     if (MBEDTLS_KEY_EXCHANGE_DHE_RSA == ex_type)
     {
         // Extract public server params (P,G) from public key into generator spec
         size_t sz = sizeof(SeosCryptoApi_Key_DhParams);
         if ((err = SeosCryptoApi_Key_getParams(&ssl->handshake->pubKey,
-                                               &keySpec.key.params.dh, &sz)) != SEOS_SUCCESS)
+                                               &key.spec.key.params.dh, &sz)) != SEOS_SUCCESS)
         {
             MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_Key_getParams" ), err );
             return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
         }
-        keySpec.type        = SeosCryptoApi_Key_SPECTYPE_PARAMS;
-        keySpec.key.type    = SeosCryptoApi_Key_TYPE_DH_PRV;
-        algEx               = SeosCryptoApi_Agreement_ALG_DH;
+        key.spec.type     = SeosCryptoApi_Key_SPECTYPE_PARAMS;
+        key.spec.key.type = SeosCryptoApi_Key_TYPE_DH_PRV;
+        algEx             = SeosCryptoApi_Agreement_ALG_DH;
     }
     else if (MBEDTLS_KEY_EXCHANGE_ECDHE_RSA == ex_type)
     {
         // We only support one curve right now, so there is no need to extract
         // any params or anything of that sort..
-        keySpec.type        = SeosCryptoApi_Key_SPECTYPE_BITS;
-        keySpec.key.type    = SeosCryptoApi_Key_TYPE_SECP256R1_PRV;
-        algEx               = SeosCryptoApi_Agreement_ALG_ECDH;
+        key.spec.type     = SeosCryptoApi_Key_SPECTYPE_BITS;
+        key.spec.key.type = SeosCryptoApi_Key_TYPE_SECP256R1_PRV;
+        algEx             = SeosCryptoApi_Agreement_ALG_ECDH;
     }
 
     // Generate private key and make public key from it
     if ((err = SeosCryptoApi_Key_generate(ssl->cryptoCtx, &prvKey,
-                                          &keySpec)) != SEOS_SUCCESS)
+                                          &key.spec)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_Key_generate" ), err );
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -306,13 +310,13 @@ seos_exchange_key(mbedtls_ssl_context*        ssl,
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     if ((err = SeosCryptoApi_Key_makePublic(&pubKey, &prvKey,
-                                            &keySpec.key.attribs)) != SEOS_SUCCESS)
+                                            &key.spec.key.attribs)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_Key_makePublic" ), err );
         goto err0;
     }
     // Export public key
-    if ((err = SeosCryptoApi_Key_export(&pubKey, NULL, &keyData)) != SEOS_SUCCESS)
+    if ((err = SeosCryptoApi_Key_export(&pubKey, NULL, &key.data)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_Key_export" ), err );
         goto err1;
@@ -320,9 +324,9 @@ seos_exchange_key(mbedtls_ssl_context*        ssl,
 
     // Write exported key data to TLS buffer
     if ( ( (MBEDTLS_KEY_EXCHANGE_DHE_RSA == ex_type) &&
-           (ret = write_dh_public_key(ssl, &keyData, ssl->out_msg, i, n)) ) ||
+           (ret = write_dh_public_key(ssl, &key.data, ssl->out_msg, i, n)) ) ||
          ( (MBEDTLS_KEY_EXCHANGE_ECDHE_RSA == ex_type) &&
-           (ret = write_ecdh_public_key(ssl, &keyData, ssl->out_msg, i, n)) ) )
+           (ret = write_ecdh_public_key(ssl, &key.data, ssl->out_msg, i, n)) ) )
     {
         goto err1;
     }
@@ -398,7 +402,7 @@ seos_parse_server_dh_params(mbedtls_ssl_context* ssl,
                             unsigned char*       end)
 {
     seos_err_t err;
-    static SeosCryptoApi_Key_Data keyData =
+    SeosCryptoApi_Key_Data keyData =
     {
         .type = SeosCryptoApi_Key_TYPE_DH_PUB,
         .attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW
