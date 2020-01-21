@@ -118,7 +118,7 @@ seos_parse_server_ecdh_params(mbedtls_ssl_context* ssl,
     SeosCryptoApi_Key_Data keyData =
     {
         .type = SeosCryptoApi_Key_TYPE_SECP256R1_PUB,
-        .attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW
+        .attribs.exportable = true
     };
     SeosCryptoApi_Key_Secp256r1Pub* ecPub = &keyData.data.secp256r1.pub;
 
@@ -174,7 +174,7 @@ seos_parse_server_ecdh_params(mbedtls_ssl_context* ssl,
                           ecPub->qyLen);
 
     if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, &ssl->handshake->pubKey,
-                                        NULL, &keyData)) != SEOS_SUCCESS)
+                                        &keyData)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_Key_import" ), err );
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -276,7 +276,7 @@ seos_exchange_key(mbedtls_ssl_context*        ssl,
     } key;
 
     // Set up the key generation spec for our private key
-    key.spec.key.attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW;
+    key.spec.key.attribs.exportable = true;
     if (MBEDTLS_KEY_EXCHANGE_DHE_RSA == ex_type)
     {
         // Extract public server params (P,G) from public key into generator spec
@@ -316,7 +316,7 @@ seos_exchange_key(mbedtls_ssl_context*        ssl,
         goto err0;
     }
     // Export public key
-    if ((err = SeosCryptoApi_Key_export(&pubKey, NULL, &key.data)) != SEOS_SUCCESS)
+    if ((err = SeosCryptoApi_Key_export(&pubKey, &key.data)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_Key_export" ), err );
         goto err1;
@@ -405,7 +405,7 @@ seos_parse_server_dh_params(mbedtls_ssl_context* ssl,
     SeosCryptoApi_Key_Data keyData =
     {
         .type = SeosCryptoApi_Key_TYPE_DH_PUB,
-        .attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW
+        .attribs.exportable = true
     };
     SeosCryptoApi_Key_DhPub* dhPub = &keyData.data.dh.pub;
 
@@ -438,7 +438,7 @@ seos_parse_server_dh_params(mbedtls_ssl_context* ssl,
     }
 
     if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, &ssl->handshake->pubKey,
-                                        NULL, &keyData)) != SEOS_SUCCESS)
+                                        &keyData)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, ( "SeosCryptoApi_Key_import" ), err );
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -462,7 +462,7 @@ export_key(mbedtls_ssl_context*    ssl,
 {
     int ret;
 
-    keyData->attribs.flags = SeosCryptoApi_Key_FLAG_EXPORTABLE_RAW;
+    keyData->attribs.exportable = true;
     switch (sig_alg)
     {
     case MBEDTLS_PK_RSA:
@@ -519,7 +519,7 @@ seos_verify_hash_signature(mbedtls_ssl_context* ssl,
         return ret;
     }
 
-    if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, &pubKey, NULL,
+    if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, &pubKey,
                                         &keyData)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Key_import", err );
@@ -1025,13 +1025,13 @@ seos_import_aes_keys(mbedtls_ssl_context* ssl,
     seos_err_t err;
     SeosCryptoApi_Key_Data keyData =
     {
-        .type           = SeosCryptoApi_Key_TYPE_AES,
-        .attribs.flags  = SeosCryptoApi_Key_FLAG_NONE,
-        .data.aes.len   = key_len,
+        .type               = SeosCryptoApi_Key_TYPE_AES,
+        .attribs.exportable = false,
+        .data.aes.len       = key_len,
     };
 
     memcpy(keyData.data.aes.bytes, enc_bytes, key_len);
-    if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, encKey, NULL,
+    if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, encKey,
                                         &keyData)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Key_import", err );
@@ -1041,7 +1041,7 @@ seos_import_aes_keys(mbedtls_ssl_context* ssl,
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
 
     memcpy(keyData.data.aes.bytes, dec_bytes, key_len);
-    if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, decKey, NULL,
+    if ((err = SeosCryptoApi_Key_import(ssl->cryptoCtx, decKey,
                                         &keyData)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, "SeosCryptoApi_Key_import", err );
