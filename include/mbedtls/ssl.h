@@ -1026,7 +1026,7 @@ struct mbedtls_ssl_config
 struct mbedtls_ssl_context
 {
 #if defined(USE_SEOS_CRYPTO)
-    SeosCryptoApi*      cryptoCtx;
+    SeosCryptoApiH hCrypto;
 #endif
 
     const mbedtls_ssl_config *conf; /*!< configuration information          */

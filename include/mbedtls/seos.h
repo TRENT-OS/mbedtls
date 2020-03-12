@@ -87,8 +87,8 @@ seos_calc_finished(mbedtls_ssl_context* ssl,
 
 int
 seos_import_aes_keys(mbedtls_ssl_context* ssl,
-                     SeosCryptoApi_Key*   encKey,
-                     SeosCryptoApi_Key*   decKey,
+                     SeosCryptoApi_KeyH*  hEncKey,
+                     SeosCryptoApi_KeyH*  hDecKey,
                      const void*          enc_bytes,
                      const void*          dec_bytes,
                      size_t               key_len);
