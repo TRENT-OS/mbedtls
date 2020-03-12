@@ -21,8 +21,9 @@
 // ------------------------------- ssl_cli.c ----------------------------------
 
 static uint16_t
-read_curve_id(unsigned char** p,
-              unsigned char*  end)
+read_curve_id(
+    unsigned char** p,
+    unsigned char*  end)
 {
     uint8_t type;
     uint16_t id;
@@ -48,13 +49,14 @@ read_curve_id(unsigned char** p,
 }
 
 static int
-read_curve_point(unsigned char** p,
-                 unsigned char*  end,
-                 size_t          pLen,
-                 void*           xBytes,
-                 size_t*         xLen,
-                 void*           yBytes,
-                 size_t*         yLen)
+read_curve_point(
+    unsigned char** p,
+    unsigned char*  end,
+    size_t          pLen,
+    void*           xBytes,
+    size_t*         xLen,
+    void*           yBytes,
+    size_t*         yLen)
 {
     size_t n;
     int ret;
@@ -110,9 +112,10 @@ out:
 }
 
 int
-seos_parse_server_ecdh_params(mbedtls_ssl_context* ssl,
-                              unsigned char**      p,
-                              unsigned char*       end)
+seos_parse_server_ecdh_params(
+    mbedtls_ssl_context* ssl,
+    unsigned char**      p,
+    unsigned char*       end)
 {
     seos_err_t err;
     SeosCryptoApi_Key_Data keyData =
@@ -184,11 +187,12 @@ seos_parse_server_ecdh_params(mbedtls_ssl_context* ssl,
 }
 
 static int
-write_ecdh_public_key(mbedtls_ssl_context*    ssl,
-                      SeosCryptoApi_Key_Data* keyData,
-                      unsigned char*          out_msg,
-                      size_t*                 i,
-                      size_t*                 n)
+write_ecdh_public_key(
+    mbedtls_ssl_context*    ssl,
+    SeosCryptoApi_Key_Data* keyData,
+    unsigned char*          out_msg,
+    size_t*                 i,
+    size_t*                 n)
 {
     size_t plen;
     SeosCryptoApi_Key_Secp256r1Pub* ecPub = &keyData->data.secp256r1.pub;
@@ -234,11 +238,12 @@ write_ecdh_public_key(mbedtls_ssl_context*    ssl,
 }
 
 static int
-write_dh_public_key(mbedtls_ssl_context*    ssl,
-                    SeosCryptoApi_Key_Data* keyData,
-                    unsigned char*          out_msg,
-                    size_t*                 i,
-                    size_t*                 n)
+write_dh_public_key(
+    mbedtls_ssl_context*    ssl,
+    SeosCryptoApi_Key_Data* keyData,
+    unsigned char*          out_msg,
+    size_t*                 i,
+    size_t*                 n)
 {
     SeosCryptoApi_Key_DhPub* dhPub = &keyData->data.dh.pub;
 
@@ -256,10 +261,11 @@ write_dh_public_key(mbedtls_ssl_context*    ssl,
 }
 
 int
-seos_exchange_key(mbedtls_ssl_context*        ssl,
-                  mbedtls_key_exchange_type_t ex_type,
-                  size_t*                     i,
-                  size_t*                     n)
+seos_exchange_key(
+    mbedtls_ssl_context*        ssl,
+    mbedtls_key_exchange_type_t ex_type,
+    size_t*                     i,
+    size_t*                     n)
 {
     int ret;
     seos_err_t err;
@@ -366,10 +372,11 @@ err0:
 }
 
 static size_t
-read_bignum(unsigned char** p,
-            unsigned char*  end,
-            void*           buf,
-            size_t          sz)
+read_bignum(
+    unsigned char** p,
+    unsigned char*  end,
+    void*           buf,
+    size_t          sz)
 {
     size_t n;
 
@@ -397,9 +404,10 @@ read_bignum(unsigned char** p,
 }
 
 int
-seos_parse_server_dh_params(mbedtls_ssl_context* ssl,
-                            unsigned char**      p,
-                            unsigned char*       end)
+seos_parse_server_dh_params(
+    mbedtls_ssl_context* ssl,
+    unsigned char**      p,
+    unsigned char*       end)
 {
     seos_err_t err;
     SeosCryptoApi_Key_Data keyData =
@@ -455,10 +463,11 @@ seos_parse_server_dh_params(mbedtls_ssl_context* ssl,
 }
 
 static int
-export_key(mbedtls_ssl_context*    ssl,
-           mbedtls_pk_type_t       sig_alg,
-           void*                   pk_ctx,
-           SeosCryptoApi_Key_Data* keyData)
+export_key(
+    mbedtls_ssl_context*    ssl,
+    mbedtls_pk_type_t       sig_alg,
+    void*                   pk_ctx,
+    SeosCryptoApi_Key_Data* keyData)
 {
     int ret;
 
@@ -499,14 +508,15 @@ export_key(mbedtls_ssl_context*    ssl,
 }
 
 int
-seos_verify_hash_signature(mbedtls_ssl_context* ssl,
-                           void*                pk_ctx,
-                           mbedtls_pk_type_t    sig_type,
-                           mbedtls_md_type_t    hash_type,
-                           const void*          hash,
-                           size_t               hash_len,
-                           const void*          sig,
-                           size_t               sig_len)
+seos_verify_hash_signature(
+    mbedtls_ssl_context* ssl,
+    void*                pk_ctx,
+    mbedtls_pk_type_t    sig_type,
+    mbedtls_md_type_t    hash_type,
+    const void*          hash,
+    size_t               hash_len,
+    const void*          sig,
+    size_t               sig_len)
 {
     int ret;
     seos_err_t err;
@@ -572,12 +582,13 @@ err0:
 // ------------------------------- x509_crt.c ----------------------------------
 
 static int
-hash_cert(mbedtls_ssl_context* ssl,
-          mbedtls_md_type_t    hash_alg,
-          const void*          cert,
-          const size_t         cert_len,
-          void*                hash,
-          size_t*              hash_len)
+hash_cert(
+    mbedtls_ssl_context* ssl,
+    mbedtls_md_type_t    hash_alg,
+    const void*          cert,
+    const size_t         cert_len,
+    void*                hash,
+    size_t*              hash_len)
 {
     int ret;
     seos_err_t err;
@@ -645,14 +656,15 @@ err0:
 }
 
 int
-seos_verify_cert_signature(mbedtls_ssl_context* ssl,
-                           void*                pk_ctx,
-                           mbedtls_pk_type_t    sig_type,
-                           mbedtls_md_type_t    hash_type,
-                           const void*          cert,
-                           size_t               cert_len,
-                           const void*          sig,
-                           size_t               sig_len)
+seos_verify_cert_signature(
+    mbedtls_ssl_context* ssl,
+    void*                pk_ctx,
+    mbedtls_pk_type_t    sig_type,
+    mbedtls_md_type_t    hash_type,
+    const void*          cert,
+    size_t               cert_len,
+    const void*          sig,
+    size_t               sig_len)
 {
     int ret;
     unsigned char hash[MBEDTLS_MD_MAX_SIZE];
@@ -673,14 +685,15 @@ seos_verify_cert_signature(mbedtls_ssl_context* ssl,
 // -------------------------------- ssl_tls.c ----------------------------------
 
 int
-seos_tls_prf(mbedtls_ssl_context* ssl,
-             const unsigned char* secret,
-             size_t               slen,
-             const char*          label,
-             const unsigned char* random,
-             size_t               rlen,
-             unsigned char*       dstbuf,
-             size_t               dlen)
+seos_tls_prf(
+    mbedtls_ssl_context* ssl,
+    const unsigned char* secret,
+    size_t               slen,
+    const char*          label,
+    const unsigned char* random,
+    size_t               rlen,
+    unsigned char*       dstbuf,
+    size_t               dlen)
 {
     size_t nb, len;
     size_t i, j, k, md_len;
@@ -780,8 +793,9 @@ seos_tls_prf(mbedtls_ssl_context* ssl,
 }
 
 void
-seos_calc_verify(mbedtls_ssl_context* ssl,
-                 unsigned char        hash[32])
+seos_calc_verify(
+    mbedtls_ssl_context* ssl,
+    unsigned char        hash[32])
 {
     size_t len = 32;
     seos_err_t err;
@@ -820,9 +834,10 @@ out:
 }
 
 void
-seos_update_checksum(mbedtls_ssl_context* ssl,
-                     const unsigned char* buf,
-                     size_t               len)
+seos_update_checksum(
+    mbedtls_ssl_context* ssl,
+    const unsigned char* buf,
+    size_t               len)
 {
     seos_err_t err;
     if ((err = SeosCryptoApi_Digest_process(ssl->handshake->hSessHash,
@@ -833,9 +848,10 @@ seos_update_checksum(mbedtls_ssl_context* ssl,
 }
 
 void
-seos_calc_finished(mbedtls_ssl_context* ssl,
-                   unsigned char*       buf,
-                   int                  from)
+seos_calc_finished(
+    mbedtls_ssl_context* ssl,
+    unsigned char*       buf,
+    int                  from)
 {
     int len = 12;
     const char* sender;
@@ -894,18 +910,19 @@ out:
 }
 
 static int
-auth_encrypt(mbedtls_ssl_context* ssl,
-             SeosCryptoApi_KeyH   hEncKey,
-             const unsigned char* iv,
-             size_t               iv_len,
-             const unsigned char* ad,
-             size_t               ad_len,
-             const unsigned char* input,
-             size_t               ilen,
-             unsigned char*       output,
-             size_t*              olen,
-             unsigned char*       tag,
-             size_t               tag_len)
+auth_encrypt(
+    mbedtls_ssl_context* ssl,
+    SeosCryptoApi_KeyH   hEncKey,
+    const unsigned char* iv,
+    size_t               iv_len,
+    const unsigned char* ad,
+    size_t               ad_len,
+    const unsigned char* input,
+    size_t               ilen,
+    unsigned char*       output,
+    size_t*              olen,
+    unsigned char*       tag,
+    size_t               tag_len)
 {
     seos_err_t err;
     int ret;
@@ -955,18 +972,19 @@ err0:
 }
 
 static int
-auth_decrypt(mbedtls_ssl_context* ssl,
-             SeosCryptoApi_KeyH   hDecKey,
-             const unsigned char* iv,
-             size_t               iv_len,
-             const unsigned char* ad,
-             size_t               ad_len,
-             const unsigned char* input,
-             size_t               ilen,
-             unsigned char*       output,
-             size_t*              olen,
-             unsigned char*       tag,
-             size_t               tag_len)
+auth_decrypt(
+    mbedtls_ssl_context* ssl,
+    SeosCryptoApi_KeyH   hDecKey,
+    const unsigned char* iv,
+    size_t               iv_len,
+    const unsigned char* ad,
+    size_t               ad_len,
+    const unsigned char* input,
+    size_t               ilen,
+    unsigned char*       output,
+    size_t*              olen,
+    unsigned char*       tag,
+    size_t               tag_len)
 {
     int ret;
     seos_err_t err;
@@ -1015,12 +1033,13 @@ err0:
 }
 
 int
-seos_import_aes_keys(mbedtls_ssl_context* ssl,
-                     SeosCryptoApi_KeyH*  hEncKey,
-                     SeosCryptoApi_KeyH*  hDecKey,
-                     const void*          enc_bytes,
-                     const void*          dec_bytes,
-                     size_t               key_len)
+seos_import_aes_keys(
+    mbedtls_ssl_context* ssl,
+    SeosCryptoApi_KeyH*  hEncKey,
+    SeosCryptoApi_KeyH*  hDecKey,
+    const void*          enc_bytes,
+    const void*          dec_bytes,
+    size_t               key_len)
 {
     int ret;
     seos_err_t err;
@@ -1061,14 +1080,16 @@ err0:
 }
 
 inline static int
-ssl_ep_len(void* x)
+ssl_ep_len(
+    void* x)
 {
     // Only non-zero for DTLS
     return 0;
 }
 
 int
-seos_encrypt_buf(mbedtls_ssl_context* ssl)
+seos_encrypt_buf(
+    mbedtls_ssl_context* ssl)
 {
     mbedtls_cipher_mode_t mode;
 
@@ -1183,7 +1204,8 @@ seos_encrypt_buf(mbedtls_ssl_context* ssl)
 }
 
 int
-seos_decrypt_buf(mbedtls_ssl_context* ssl)
+seos_decrypt_buf(
+    mbedtls_ssl_context* ssl)
 {
     mbedtls_cipher_mode_t mode;
 
