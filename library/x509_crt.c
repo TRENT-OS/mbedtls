@@ -39,8 +39,8 @@
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 
-#if defined(USE_SEOS_CRYPTO)
-#include "mbedtls/seos.h"
+#if defined(USE_OS_CRYPTO)
+#include "mbedtls/crypto.h"
 #endif
 
 #include "mbedtls/x509_crt.h"
@@ -1888,7 +1888,7 @@ static int x509_crt_verifycrl( mbedtls_x509_crt *crt, mbedtls_x509_crt *ca,
 }
 #endif /* MBEDTLS_X509_CRL_PARSE_C */
 
-#if !defined(USE_SEOS_CRYPTO)
+#if !defined(USE_OS_CRYPTO)
 /*
  * Check the signature of a certificate by its parent
  */
@@ -1926,7 +1926,7 @@ static int x509_crt_check_signature( mbedtls_ssl_context *ssl,
                 child->sig_md, hash, mbedtls_md_get_size( md_info ),
                 child->sig.p, child->sig.len ) );
 }
-#endif /* USE_SEOS_CRYPTO */
+#endif /* USE_OS_CRYPTO */
 
 /*
  * Check if 'parent' is a suitable parent (signing CA) for 'child'.
@@ -2063,8 +2063,8 @@ static int x509_crt_find_parent_in(
 check_signature:
 #endif
 
-#if defined(USE_SEOS_CRYPTO)
-        ret = seos_verify_cert_signature(ssl, parent->pk.pk_ctx, child->sig_pk, child->sig_md, child->tbs.p, child->tbs.len, child->sig.p, child->sig.len);
+#if defined(USE_OS_CRYPTO)
+        ret = crypto_verify_cert_signature(ssl, parent->pk.pk_ctx, child->sig_pk, child->sig_md, child->tbs.p, child->tbs.len, child->sig.p, child->sig.len);
 #else
         ret = x509_crt_check_signature( ssl, child, parent, rs_ctx );
 #endif

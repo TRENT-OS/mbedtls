@@ -30,8 +30,8 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#if defined(USE_SEOS_CRYPTO)
-#include "SeosCryptoApi.h"
+#if defined(USE_OS_CRYPTO)
+#include "OS_Crypto.h"
 #endif
 
 #include "bignum.h"
@@ -1025,8 +1025,8 @@ struct mbedtls_ssl_config
 
 struct mbedtls_ssl_context
 {
-#if defined(USE_SEOS_CRYPTO)
-    SeosCryptoApiH hCrypto;
+#if defined(USE_OS_CRYPTO)
+    OS_Crypto_Handle_t hCrypto;
 #endif
 
     const mbedtls_ssl_config *conf; /*!< configuration information          */

@@ -27,8 +27,8 @@
 
 #if defined(MBEDTLS_SSL_CLI_C)
 
-#if defined(USE_SEOS_CRYPTO)
-#include "mbedtls/seos.h"
+#if defined(USE_OS_CRYPTO)
+#include "mbedtls/crypto.h"
 #endif
 
 #if defined(MBEDTLS_PLATFORM_C)
@@ -1263,7 +1263,7 @@ static int ssl_parse_session_ticket_ext( mbedtls_ssl_context *ssl,
 }
 #endif /* MBEDTLS_SSL_SESSION_TICKETS */
 
-#if defined(USE_SEOS_CRYPTO) || \
+#if defined(USE_OS_CRYPTO) || \
     defined(MBEDTLS_ECDH_C) || defined(MBEDTLS_ECDSA_C) || \
     defined(MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED)
 static int ssl_parse_supported_point_formats_ext( mbedtls_ssl_context *ssl,
@@ -1288,7 +1288,7 @@ static int ssl_parse_supported_point_formats_ext( mbedtls_ssl_context *ssl,
         if( p[0] == MBEDTLS_ECP_PF_UNCOMPRESSED ||
             p[0] == MBEDTLS_ECP_PF_COMPRESSED )
         {
-#if defined(USE_SEOS_CRYPTO)
+#if defined(USE_OS_CRYPTO)
             ssl->handshake->ecdh.pointFormat = p[0];
 #else
 #if defined(MBEDTLS_ECDH_C) || defined(MBEDTLS_ECDSA_C)
@@ -1297,7 +1297,7 @@ static int ssl_parse_supported_point_formats_ext( mbedtls_ssl_context *ssl,
 #if defined(MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED)
             ssl->handshake->ecjpake_ctx.point_format = p[0];
 #endif
-#endif /* USE_SEOS_CRYPTO */
+#endif /* USE_OS_CRYPTO */
             MBEDTLS_SSL_DEBUG_MSG( 4, ( "point format selected: %d", p[0] ) );
             return( 0 );
         }
@@ -1989,7 +1989,7 @@ static int ssl_parse_server_hello( mbedtls_ssl_context *ssl )
     return( 0 );
 }
 
-#if !defined(USE_SEOS_CRYPTO)
+#if !defined(USE_OS_CRYPTO)
 #if defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED) ||                       \
     defined(MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED)
 static int ssl_parse_server_dh_params( mbedtls_ssl_context *ssl, unsigned char **p,
@@ -2111,7 +2111,7 @@ static int ssl_parse_server_ecdh_params( mbedtls_ssl_context *ssl,
 #endif /* MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED ||
           MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED ||
           MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED */
-#endif /* !USE_SEOS_CRYPTO */
+#endif /* !USE_OS_CRYPTO */
 
 #if defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED)
 static int ssl_parse_server_psk_hint( mbedtls_ssl_context *ssl,
@@ -2434,10 +2434,10 @@ start_processing:
     end = ssl->in_msg + ssl->in_hslen;
     MBEDTLS_SSL_DEBUG_BUF( 3,   "server key exchange", p, end - p );
 
-#if defined(USE_SEOS_CRYPTO)
+#if defined(USE_OS_CRYPTO)
     if(ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA)
     {
-        if(seos_parse_server_dh_params( ssl, &p, end ) != 0 )
+        if(crypto_parse_server_dh_params( ssl, &p, end ) != 0 )
         {
             MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
@@ -2448,7 +2448,7 @@ start_processing:
     }
     else if(ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA)
     {
-        if( seos_parse_server_ecdh_params( ssl, &p, end ) != 0 )
+        if( crypto_parse_server_ecdh_params( ssl, &p, end ) != 0 )
         {
             MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
@@ -2541,7 +2541,7 @@ start_processing:
         MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
         return( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
-#endif /* USE_SEOS_CRYPTO */
+#endif /* USE_OS_CRYPTO */
 
 #if defined(MBEDTLS_KEY_EXCHANGE__WITH_SERVER_SIGNATURE__ENABLED)
     if( mbedtls_ssl_ciphersuite_uses_server_signature( ciphersuite_info ) )
@@ -2552,7 +2552,7 @@ start_processing:
         mbedtls_pk_type_t pk_alg = MBEDTLS_PK_NONE;
         unsigned char *params = ssl->in_msg + mbedtls_ssl_hs_hdr_len( ssl );
         size_t params_len = p - params;
-#if !defined(USE_SEOS_CRYPTO)
+#if !defined(USE_OS_CRYPTO)
         void *rs_ctx = NULL;
 #endif
 
@@ -2682,15 +2682,15 @@ start_processing:
             rs_ctx = &ssl->handshake->ecrs_ctx.pk;
 #endif
 
-#if defined(USE_SEOS_CRYPTO)
-        if( ( ret = seos_verify_hash_signature(ssl,
+#if defined(USE_OS_CRYPTO)
+        if( ( ret = crypto_verify_hash_signature(ssl,
                                           ssl->session_negotiate->peer_cert->pk.pk_ctx,
                                           pk_alg, md_alg,
                                           hash, hashlen,
                                           p, sig_len ) ) != 0 ) {
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
                                                 MBEDTLS_SSL_ALERT_MSG_DECRYPT_ERROR );
-            MBEDTLS_SSL_DEBUG_RET( 1, "seos_verify_hash_signature", ret );
+            MBEDTLS_SSL_DEBUG_RET( 1, "crypto_verify_hash_signature", ret );
             return ret;
         }
 #else
@@ -2710,7 +2710,7 @@ start_processing:
 #endif
             return( ret );
         }
-#endif /* USE_SEOS_CRYPTO */
+#endif /* USE_OS_CRYPTO */
     }
 #endif /* MBEDTLS_KEY_EXCHANGE__WITH_SERVER_SIGNATURE__ENABLED */
 
@@ -2953,13 +2953,13 @@ static int ssl_write_client_key_exchange( mbedtls_ssl_context *ssl )
 
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> write client key exchange" ) );
 
-#if defined(USE_SEOS_CRYPTO)
+#if defined(USE_OS_CRYPTO)
     if (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA ||
         ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA)
     {
-        if((ret = seos_exchange_key(ssl, ciphersuite_info->key_exchange, &i, &n)) != 0)
+        if((ret = crypto_exchange_key(ssl, ciphersuite_info->key_exchange, &i, &n)) != 0)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "seos_exchange_key", ret );
+            MBEDTLS_SSL_DEBUG_RET( 1, "crypto_exchange_key", ret );
             return( ret );
         }
     }
@@ -3228,7 +3228,7 @@ ecdh_calc_secret:
         MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
         return( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
-#endif /* USE_SEOS_CRYPTO */
+#endif /* USE_OS_CRYPTO */
 
     ssl->out_msglen  = i + n;
     ssl->out_msgtype = MBEDTLS_SSL_MSG_HANDSHAKE;

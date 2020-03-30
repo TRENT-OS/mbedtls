@@ -418,7 +418,7 @@ struct mbedtls_ssl_handshake_params
     void *user_async_ctx;
 #endif /* MBEDTLS_SSL_ASYNC_PRIVATE */
 
-#if defined(USE_SEOS_CRYPTO)
+#if defined(USE_OS_CRYPTO)
     // Here we store some more info about ECDH params, which should eventually
     // allow us to be independent from any of the original mbedTLS crypto
     // contexts
@@ -431,11 +431,11 @@ struct mbedtls_ssl_handshake_params
         uint16_t curveId;
     } ecdh;
     // Used to compute hash over session
-    SeosCryptoApi_DigestH hSessHash;
+    OS_CryptoDigest_Handle_t hSessHash;
     // Used to hold the server's public key value (DH or ECDH for now)
     uint8_t pubKeyUsed;
-    SeosCryptoApi_KeyH hPubKey;
-#endif /* USE_SEOS_CRYPTO */
+    OS_CryptoKey_Handle_t hPubKey;
+#endif /* USE_OS_CRYPTO */
 };
 
 typedef struct mbedtls_ssl_hs_buffer mbedtls_ssl_hs_buffer;
@@ -480,10 +480,10 @@ struct mbedtls_ssl_transform
     z_stream ctx_inflate;               /*!<  decompression context   */
 #endif
 
-#if defined(USE_SEOS_CRYPTO)
-    SeosCryptoApi_KeyH hEncKey;
+#if defined(USE_OS_CRYPTO)
+    OS_CryptoKey_Handle_t hEncKey;
     uint8_t encKeyUsed;
-    SeosCryptoApi_KeyH hDecKey;
+    OS_CryptoKey_Handle_t hDecKey;
     uint8_t decKeyUsed;
 #endif
 };
