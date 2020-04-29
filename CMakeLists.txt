@@ -11,6 +11,7 @@
 # Sources for only CRYPTO builds
 set(SOURCES_CRYPTO
     # UTILS ----------------------------------------------------------------
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/platform.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/platform_util.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/bignum.c"
     # DIGEST ---------------------------------------------------------------

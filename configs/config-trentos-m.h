@@ -5,7 +5,12 @@
 #ifndef MBEDTLS_CONFIG_H
 #define MBEDTLS_CONFIG_H
 
+// So we can get some debug output from the TLS protocol run
 #define MBEDTLS_DEBUG_C
+
+// So we can override the calloc/free functions with our own
+#define MBEDTLS_PLATFORM_C
+#define MBEDTLS_PLATFORM_MEMORY
 
 /*
  * These we need for the CRYPTO API
