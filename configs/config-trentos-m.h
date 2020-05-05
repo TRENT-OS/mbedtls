@@ -58,9 +58,6 @@
 #define MBEDTLS_PK_C
 #define MBEDTLS_ASN1_PARSE_C
 
-// Enable this so that the TRENTOS-M Crypto API is used in the TLS stack
-#define USE_OS_CRYPTO
-
 #include "mbedtls/check_config.h"
 
 #endif /* MBEDTLS_CONFIG_H */
