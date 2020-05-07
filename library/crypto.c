@@ -12,6 +12,8 @@
 
 #include "OS_Crypto.h"
 
+#include "LibDebug/Debug.h"
+
 #include "mbedtls/debug.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/ssl_internal.h"
@@ -135,12 +137,11 @@ crypto_parse_server_ecdh_params(
      */
     if ((ssl->handshake->ecdh.curveId = read_curve_id(p, end)) < 0)
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Could not parse server ECDH curve id param") );
+        Debug_LOG_ERROR("Could not parse server ECDH curve id param");
         return MBEDTLS_ERR_DHM_BAD_INPUT_DATA;
     }
 
-    MBEDTLS_SSL_DEBUG_MSG( 3, ( "ECDH curve ID: %i",
-                                ssl->handshake->ecdh.curveId ) );
+    Debug_LOG_DEBUG("ECDH curve ID: %i", ssl->handshake->ecdh.curveId);
 
     // Based on the curve_id, determine the size of the underlying prime. At this
     // point we only support one curve.
@@ -150,8 +151,7 @@ crypto_parse_server_ecdh_params(
         ssl->handshake->ecdh.primeLen = 32;
         break;
     default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Curve is not supported: %i",
-                                    ssl->handshake->ecdh.curveId) );
+        Debug_LOG_ERROR("Curve is not supported: %i", ssl->handshake->ecdh.curveId);
         return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
     }
 
@@ -160,26 +160,27 @@ crypto_parse_server_ecdh_params(
     if (ecPub->qyLen < ssl->handshake->ecdh.primeLen
         || ecPub->qxLen < ssl->handshake->ecdh.primeLen)
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ("Buffer too small for ECDH curve point") );
+        Debug_LOG_DEBUG("Buffer too small for ECDH curve point");
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
 
     if (read_curve_point(p, end, ssl->handshake->ecdh.primeLen, ecPub->qxBytes,
                          &ecPub->qxLen, ecPub->qyBytes, &ecPub->qyLen))
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Could not parse server ECDH point param") );
+        Debug_LOG_ERROR("Could not parse server ECDH point param");
         return MBEDTLS_ERR_DHM_BAD_INPUT_DATA;
     }
 
-    MBEDTLS_SSL_DEBUG_BUF(3, "ECDH x coord of server's point", ecPub->qxBytes,
-                          ecPub->qxLen);
-    MBEDTLS_SSL_DEBUG_BUF(3, "ECDH y coord of server's point", ecPub->qyBytes,
-                          ecPub->qyLen);
+    Debug_LOG_DEBUG("ECDH: x coord of server's point");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qxBytes, ecPub->qxLen);
+
+    Debug_LOG_DEBUG("ECDH: y coord of server's point");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qyBytes, ecPub->qyLen);
 
     if ((err = OS_CryptoKey_import(&ssl->handshake->hPubKey, ssl->hCrypto,
                                    &keyData)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_import" ), err );
+        Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
 
@@ -205,10 +206,11 @@ write_ecdh_public_key(
 
         plen = ecPub->qxLen + ecPub->qyLen + 1;
 
-        MBEDTLS_SSL_DEBUG_BUF(3, "ECDH: x coord of client's public point",
-                              ecPub->qxBytes, ecPub->qxLen);
-        MBEDTLS_SSL_DEBUG_BUF(3, "ECDH: y coord of client's public point",
-                              ecPub->qyBytes, ecPub->qyLen);
+        Debug_LOG_DEBUG("ECDH: x coord of client's public point");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qxBytes, ecPub->qxLen);
+
+        Debug_LOG_DEBUG("ECDH: y coord of client's public point");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qyBytes, ecPub->qyLen);
     }
     else if (ssl->handshake->ecdh.pointFormat == MBEDTLS_ECP_PF_COMPRESSED)
     {
@@ -220,13 +222,13 @@ write_ecdh_public_key(
 
         plen = ecPub->qxLen + 1;
 
-        MBEDTLS_SSL_DEBUG_BUF(3, "ECDH: x coord of client's public point (compressed)",
-                              ecPub->qxBytes, ecPub->qxLen);
+        Debug_LOG_DEBUG("ECDH: x coord of client's public point (compressed)");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qxBytes, ecPub->qxLen);
     }
     else
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported ECDH point format: %02x",
-                                    ssl->handshake->ecdh.pointFormat ) );
+        Debug_LOG_ERROR("Unsupported ECDH point format: %02x",
+                        ssl->handshake->ecdh.pointFormat);
         return MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE;
     }
 
@@ -247,7 +249,8 @@ write_dh_public_key(
 {
     OS_CryptoKey_DhPub_t* dhPub = &keyData->data.dh.pub;
 
-    MBEDTLS_SSL_DEBUG_BUF(3, "DHM: GX ", dhPub->gxBytes, dhPub->gxLen);
+    Debug_LOG_DEBUG("DH: client's public G*x value");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->gxBytes, dhPub->gxLen);
 
     // Write public param back to server
     out_msg[4] = (unsigned char)( dhPub->params.pLen >> 8 );
@@ -290,7 +293,7 @@ crypto_exchange_key(
         if ((err = OS_CryptoKey_getParams(ssl->handshake->hPubKey,
                                           &key.spec.key.params.dh, &sz)) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_getParams" ), err );
+            Debug_LOG_ERROR("OS_CryptoKey_getParams() failed with %d", err);
             return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
         }
         key.spec.type     = OS_CryptoKey_SPECTYPE_PARAMS;
@@ -310,7 +313,7 @@ crypto_exchange_key(
     if ((err = OS_CryptoKey_generate(&hPrvKey, ssl->hCrypto,
                                      &key.spec)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_generate" ), err );
+        Debug_LOG_ERROR("OS_CryptoKey_generate() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
 
@@ -318,13 +321,13 @@ crypto_exchange_key(
     if ((err = OS_CryptoKey_makePublic(&hPubKey, ssl->hCrypto, hPrvKey,
                                        &key.spec.key.attribs)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_makePublic" ), err );
+        Debug_LOG_ERROR("OS_CryptoKey_makePublic() failed with %d", err);
         goto err0;
     }
     // Export public key
     if ((err = OS_CryptoKey_export(hPubKey, &key.data)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_export" ), err );
+        Debug_LOG_ERROR("OS_CryptoKey_export() failed with %d", err);
         goto err1;
     }
 
@@ -343,30 +346,30 @@ crypto_exchange_key(
     if ((err = OS_CryptoAgreement_init(&hAgree, ssl->hCrypto, hPrvKey,
                                        algEx)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoAgreement_init" ), err );
+        Debug_LOG_ERROR("OS_CryptoAgreement_init() failed with %d", err);
         goto err1;
     }
     if ((err = OS_CryptoAgreement_agree(hAgree, ssl->handshake->hPubKey,
                                         ssl->handshake->premaster, &ssl->handshake->pmslen)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoAgreement_agree" ), err );
+        Debug_LOG_ERROR("OS_CryptoAgreement_agree() failed with %d", err);
     }
 
     ret = 0;
 
     if ((err = OS_CryptoAgreement_free(hAgree)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoAgreement_free" ), err );
+        Debug_LOG_ERROR("OS_CryptoAgreement_free() failed with %d", err);
     }
 err1:
     if ((err = OS_CryptoKey_free(hPubKey)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_free" ), err );
+        Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
     }
 err0:
     if ((err = OS_CryptoKey_free(hPrvKey)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_free" ), err );
+        Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
     }
     return ret;
 }
@@ -433,31 +436,35 @@ crypto_parse_server_dh_params(
          (dhPub->gxLen       = read_bignum(p, end, dhPub->gxBytes,
                                            OS_CryptoKey_SIZE_DH_MAX)) <= 0 )
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Could not parse server DHM params") );
+        Debug_LOG_ERROR("Could not parse server DHM params");
         return MBEDTLS_ERR_DHM_BAD_INPUT_DATA;
     }
 
     if (dhPub->params.pLen * 8 < ssl->conf->dhm_min_bitlen)
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "DHM prime too short: %d < %d",
-                                    dhPub->params.pLen * 8,
-                                    ssl->conf->dhm_min_bitlen ) );
+        Debug_LOG_ERROR("DHM prime too short: %d < %d",
+                        dhPub->params.pLen * 8, ssl->conf->dhm_min_bitlen);
         return MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE;
     }
 
     if ((err = OS_CryptoKey_import(&ssl->handshake->hPubKey, ssl->hCrypto,
                                    &keyData)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, ( "OS_CryptoKey_import" ), err );
+        Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
 
-    MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: P ", dhPub->params.pBytes, dhPub->params.pLen );
-    MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: G ", dhPub->params.gBytes, dhPub->params.gLen );
+    Debug_LOG_DEBUG("DH: shared P value");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->params.pBytes, dhPub->params.pLen );
+
+    Debug_LOG_DEBUG("DH: shared G value");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->params.gBytes, dhPub->params.gLen );
+
     // Note: The view here is that the public param is "theirs", that is why here it
     // is called GY. We only have "our" keys (public / private), where we have the
     // secret param X and thus GX as name for the public value!
-    MBEDTLS_SSL_DEBUG_BUF( 3, "DHM: GY", dhPub->gxBytes, dhPub->gxLen );
+    Debug_LOG_DEBUG("DH: server's public G*y value");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->gxBytes, dhPub->gxLen );
 
     return ( 0 );
 }
@@ -481,7 +488,7 @@ export_key(
         // Make sure we can actually handle the key
         if (rsa_ctx->len > OS_CryptoKey_SIZE_RSA_MAX)
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "RSA key size not supported: %i", rsa_ctx->len ) );
+            Debug_LOG_ERROR("RSA key size not supported: %i", rsa_ctx->len);
             return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
         }
         // Transform the public key into a OS_CryptoKey_Data_t so we can use it
@@ -493,14 +500,14 @@ export_key(
                                           0,
                                           NULL, 0, NULL, 0, hPubKey->eBytes, hPubKey->eLen)) != 0)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "mbedtls_rsa_export_raw", ret );
+            Debug_LOG_ERROR("mbedtls_rsa_export_raw() failed with %d", ret );
             return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
         }
         break;
     }
     default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported signature algorithm for cert: %i",
-                                    sig_alg ) );
+        Debug_LOG_ERROR("Unsupported signature algorithm for cert: %i",
+                        sig_alg);
         return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
     }
 
@@ -526,14 +533,14 @@ crypto_verify_hash_signature(
 
     if ((ret = export_key(ssl, sig_type, pk_ctx, &keyData)) != 0)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "export_key", ret );
+        Debug_LOG_ERROR("export_key() failed with %d", ret );
         return ret;
     }
 
     if ((err = OS_CryptoKey_import(&hPubKey, ssl->hCrypto,
                                    &keyData)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoKey_import", err );
+        Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
 
@@ -545,20 +552,20 @@ crypto_verify_hash_signature(
                                            OS_CryptoSignature_ALG_RSA_PKCS1_V15,
                                            hash_type)) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoSignature_init", err );
+            Debug_LOG_ERROR("OS_CryptoSignature_init() failed with %d", err);
             goto err0;
         }
         break;
     default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported key extracted from cert: %i",
-                                    keyData.type ) );
+        Debug_LOG_DEBUG("Unsupported key extracted from cert: %i",
+                        keyData.type);
         goto err0;
     }
 
     if ((err = OS_CryptoSignature_verify(hSig, hash, hash_len, sig,
                                          sig_len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoSignature_verify", err );
+        Debug_LOG_ERROR("OS_CryptoSignature_verify() failed with %d", err);
         goto err1;
     }
 
@@ -568,12 +575,12 @@ crypto_verify_hash_signature(
 err1:
     if ((err = OS_CryptoSignature_free(hSig)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoSignature_init", err );
+        Debug_LOG_ERROR("OS_CryptoSignature_init() failed with %d", err);
     }
 err0:
     if ((err = OS_CryptoKey_free(hPubKey)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoKey_free", err );
+        Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
     }
 
     return ret;
@@ -603,8 +610,7 @@ hash_cert(
     case MBEDTLS_MD_SHA256:
         break;
     default:
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Unsupported digest algorithm for cert: %i",
-                                    hash_alg ) );
+        Debug_LOG_ERROR("Unsupported digest algorithm for cert: %i", hash_alg);
         return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
     }
 
@@ -612,7 +618,7 @@ hash_cert(
     if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
                                     hash_alg)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_init", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
         goto err0;
     }
 
@@ -627,7 +633,7 @@ hash_cert(
         if ((err = OS_CryptoDigest_process(hDigest, cert + cert_offs,
                                            next_len)) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_process", err );
+            Debug_LOG_ERROR("OS_CryptoDigest_process() failed with %d", err);
             goto err1;
         }
         cert_left -= next_len;
@@ -639,7 +645,7 @@ hash_cert(
     if ((err = OS_CryptoDigest_finalize(hDigest, hash,
                                         hash_len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_finalize", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_finalize() failed with %d", err);
         goto err1;
     }
 
@@ -649,7 +655,7 @@ hash_cert(
 err1:
     if ((err = OS_CryptoDigest_free(hDigest)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_free", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_free() failed with %d", err);
     }
 err0:
     return ret;
@@ -672,14 +678,15 @@ crypto_verify_cert_signature(
 
     if ((ret = hash_cert(ssl, hash_type, cert, cert_len, hash, &hash_size)) != 0)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "hash_cert", ret );
+        Debug_LOG_ERROR("hash_cert() failed with %d", ret );
         return ret;
     }
 
-    MBEDTLS_SSL_DEBUG_BUF( 3, "hash of cert", hash, hash_size );
+    Debug_LOG_DEBUG("Hash of certificate");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, hash, hash_size );
 
     return crypto_verify_hash_signature(ssl, pk_ctx, sig_type, hash_type, hash,
-                                      hash_size, sig, sig_len);
+                                        hash_size, sig, sig_len);
 }
 
 // -------------------------------- ssl_tls.c ----------------------------------
@@ -719,25 +726,25 @@ crypto_tls_prf(
     if ((err = OS_CryptoMac_init(&hMac, ssl->hCrypto,
                                  OS_CryptoMac_ALG_HMAC_SHA256)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_init", err );
+        Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
     len = sizeof(tmp);
     if ((err = OS_CryptoMac_start(hMac, secret, slen)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_init", err );
+        Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
     if ((err = OS_CryptoMac_process(hMac, tmp + md_len,
                                     nb )) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_init", err );
+        Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
     if ((err = OS_CryptoMac_finalize(hMac, tmp, &len )) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_init", err );
+        Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
@@ -745,34 +752,34 @@ crypto_tls_prf(
     {
         if ((err = OS_CryptoMac_start(hMac, secret, slen)) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_start", err );
+            Debug_LOG_ERROR("OS_CryptoMac_start() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
         if ((err = OS_CryptoMac_process(hMac, tmp,
                                         md_len + nb )) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_process", err );
+            Debug_LOG_ERROR("OS_CryptoMac_process() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
         if ((err = OS_CryptoMac_finalize(hMac, h_i, &len )) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_finalize", err );
+            Debug_LOG_ERROR("OS_CryptoMac_finalize() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
 
         if ((err = OS_CryptoMac_start(hMac, secret, slen)) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_init", err );
+            Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
         if ((err = OS_CryptoMac_process(hMac, tmp, md_len )) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_process", err );
+            Debug_LOG_ERROR("OS_CryptoMac_process() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
         if ((err = OS_CryptoMac_finalize(hMac, tmp, &len )) != SEOS_SUCCESS)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoMac_finalize", err );
+            Debug_LOG_ERROR("OS_CryptoMac_finalize() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
 
@@ -804,32 +811,34 @@ crypto_calc_verify(
     if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
                                     OS_CryptoDigest_ALG_SHA256)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_init", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
         return;
     }
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> calc verify sha256" ) );
+    Debug_LOG_DEBUG("=> calc verify sha256");
 
     if ((err = OS_CryptoDigest_clone(hDigest,
                                      ssl->handshake->hSessHash)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_clone", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_clone() failed with %d", err);
         goto out;
     }
     if ((err = OS_CryptoDigest_finalize(hDigest, hash,
                                         &len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_finalize", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_finalize() failed with %d", err);
         goto out;
     }
 
-    MBEDTLS_SSL_DEBUG_BUF( 3, "calculated verify result", hash, 32 );
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= calc verify" ) );
+    Debug_LOG_DEBUG("calculated verify result");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, hash, 32 );
+
+    Debug_LOG_DEBUG("<= calc verify");
 
 out:
     if ((err = OS_CryptoDigest_free(hDigest)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_free", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_free() failed with %d", err);
     }
 }
 
@@ -843,7 +852,7 @@ crypto_update_checksum(
     if ((err = OS_CryptoDigest_process(ssl->handshake->hSessHash,
                                        buf, len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_process", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_process() failed with %d", err);
     }
 }
 
@@ -869,16 +878,16 @@ crypto_calc_finished(
     if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
                                     OS_CryptoDigest_ALG_SHA256)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_init", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
         return;
     }
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> calc finished tls sha256" ) );
+    Debug_LOG_DEBUG("=> calc finished tls sha256");
 
     if ((err = OS_CryptoDigest_clone(hDigest,
                                      ssl->handshake->hSessHash)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_clone", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_clone() failed with %d", err);
         goto out;
     }
 
@@ -889,24 +898,25 @@ crypto_calc_finished(
     if ((err = OS_CryptoDigest_finalize(hDigest, padbuf,
                                         &hashLen)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_finalize", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_finalize() failed with %d", err);
         goto out;
     }
 
     ssl->handshake->tls_prf( ssl, session->master, 48, sender,
                              padbuf, 32, buf, len );
 
-    MBEDTLS_SSL_DEBUG_BUF( 3, "calc finished result", buf, len );
+    Debug_LOG_DEBUG("calculated finished result");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG,  buf, len );
 
 out:
     if ((err = OS_CryptoDigest_free(hDigest)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_free", err );
+        Debug_LOG_ERROR("OS_CryptoDigest_free() failed with %d", err);
     }
 
     mbedtls_platform_zeroize(  padbuf, sizeof(  padbuf ) );
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= calc finished" ) );
+    Debug_LOG_DEBUG("<= calc finished");
 }
 
 static int
@@ -933,7 +943,7 @@ auth_encrypt(
                                     OS_CryptoCipher_ALG_AES_GCM_ENC,
                                     iv, iv_len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_init", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
@@ -941,21 +951,21 @@ auth_encrypt(
     if ((err = OS_CryptoCipher_start(hCipher,  ad,
                                      ad_len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_start", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_start() failed with %d", err);
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_process(hCipher, input, ilen, output,
                                        olen)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_process", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_process() failed with %d", err);
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_finalize(hCipher, tag,
                                         &tlen)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_finalize", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_finalize() failed with %d", err);
         goto err0;
     }
 
@@ -964,7 +974,7 @@ auth_encrypt(
 err0:
     if ((err = OS_CryptoCipher_free(hCipher)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_free", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_free() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
@@ -995,28 +1005,28 @@ auth_decrypt(
                                     OS_CryptoCipher_ALG_AES_GCM_DEC,
                                     iv, iv_len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_init", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_init() failed with %d", err );
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     if ((err = OS_CryptoCipher_start(hCipher, ad, ad_len)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_start", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_start() failed with %d", err );
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_process(hCipher, input, ilen, output,
                                        olen)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_process", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_process() failed with %d", err );
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_finalize(hCipher, tag,
                                         &tlen)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_finalize", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_finalize() failed with %d", err );
         goto err0;
     }
 
@@ -1025,7 +1035,7 @@ auth_decrypt(
 err0:
     if ((err = OS_CryptoCipher_free(hCipher)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoCipher_free", err );
+        Debug_LOG_ERROR("OS_CryptoCipher_free() failed with %d", err );
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
@@ -1054,7 +1064,7 @@ crypto_import_aes_keys(
     if ((err = OS_CryptoKey_import(hEncKey, ssl->hCrypto,
                                    &keyData)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoKey_import", err );
+        Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err );
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     }
 
@@ -1064,7 +1074,7 @@ crypto_import_aes_keys(
     if ((err = OS_CryptoKey_import(hDecKey, ssl->hCrypto,
                                    &keyData)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoKey_import", err );
+        Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         goto err0;
     }
 
@@ -1073,7 +1083,7 @@ crypto_import_aes_keys(
 err0:
     if ((err = OS_CryptoKey_free(*hEncKey)) != SEOS_SUCCESS)
     {
-        MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoKey_free", err );
+        Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err );
     }
 
     return ret;
@@ -1093,18 +1103,18 @@ crypto_encrypt_buf(
 {
     mbedtls_cipher_mode_t mode;
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> encrypt buf" ) );
+    Debug_LOG_DEBUG("=> encrypt buf");
 
     if ( ssl->session_out == NULL || ssl->transform_out == NULL )
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
+        Debug_LOG_ERROR("should never happen");
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
     mode = mbedtls_cipher_get_cipher_mode( &ssl->transform_out->cipher_ctx_enc );
 
-    MBEDTLS_SSL_DEBUG_BUF( 4, "before encrypt: output payload",
-                           ssl->out_msg, ssl->out_msglen );
+    Debug_LOG_DEBUG("before encrypt: output payload");
+    Debug_hexDump(Debug_LOG_LEVEL_DEBUG,  ssl->out_msg, ssl->out_msglen );
 
     /*
      * Encrypt
@@ -1131,7 +1141,8 @@ crypto_encrypt_buf(
         add_data[11] = ( ssl->out_msglen >> 8 ) & 0xFF;
         add_data[12] = ssl->out_msglen & 0xFF;
 
-        MBEDTLS_SSL_DEBUG_BUF( 4, "additional data for AEAD", add_data, 13 );
+        Debug_LOG_DEBUG("additional data for AEAD");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, add_data, 13 );
 
         /*
          * Generate IV
@@ -1146,14 +1157,15 @@ crypto_encrypt_buf(
         }
         else
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "Invalid IV length" ) );
+            Debug_LOG_ERROR("Invalid IV length");
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
 
-        MBEDTLS_SSL_DEBUG_BUF( 4, "IV used (internal)",
-                               iv, transform->ivlen );
-        MBEDTLS_SSL_DEBUG_BUF( 4, "IV used (transmitted)",
-                               ssl->out_iv, explicit_ivlen );
+        Debug_LOG_DEBUG("IV used (internal)");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, iv, transform->ivlen );
+
+        Debug_LOG_DEBUG("IV used (transmitted)");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ssl->out_iv, explicit_ivlen );
 
         /*
          * Fix message length with added IV
@@ -1162,9 +1174,9 @@ crypto_encrypt_buf(
         enc_msglen = ssl->out_msglen;
         ssl->out_msglen += explicit_ivlen;
 
-        MBEDTLS_SSL_DEBUG_MSG( 3, ( "before encrypt: msglen = %d, "
-                                    "including 0 bytes of padding",
-                                    ssl->out_msglen ) );
+        Debug_LOG_DEBUG("before encrypt: msglen = %d, "
+                        "including 0 bytes of padding",
+                        ssl->out_msglen);
 
         /*
          * Encrypt and authenticate
@@ -1178,27 +1190,28 @@ crypto_encrypt_buf(
                                 enc_msg + enc_msglen, taglen ) ) != 0 )
 
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "auth_encrypt", ret );
+            Debug_LOG_ERROR("auth_encrypt() wailed with %d", ret );
             return ( ret );
         }
 
         if ( olen != enc_msglen )
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
+            Debug_LOG_ERROR("should never happen");
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
 
         ssl->out_msglen += taglen;
 
-        MBEDTLS_SSL_DEBUG_BUF( 4, "after encrypt: tag", enc_msg + enc_msglen, taglen );
+        Debug_LOG_DEBUG("after encrypt: tag");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, enc_msg + enc_msglen, taglen );
     }
     else
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Cipher mode not supported" ) );
+        Debug_LOG_ERROR("Cipher mode not supported");
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= encrypt buf" ) );
+    Debug_LOG_DEBUG("<= encrypt buf");
 
     return ( 0 );
 }
@@ -1209,11 +1222,11 @@ crypto_decrypt_buf(
 {
     mbedtls_cipher_mode_t mode;
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> decrypt buf" ) );
+    Debug_LOG_DEBUG("=> decrypt buf");
 
     if ( ssl->session_in == NULL || ssl->transform_in == NULL )
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
+        Debug_LOG_ERROR("should never happen");
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
@@ -1221,8 +1234,8 @@ crypto_decrypt_buf(
 
     if ( ssl->in_msglen < ssl->transform_in->minlen )
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "in_msglen (%d) < minlen (%d)",
-                                    ssl->in_msglen, ssl->transform_in->minlen ) );
+        Debug_LOG_ERROR("in_msglen (%d) < minlen (%d)",
+                        ssl->in_msglen, ssl->transform_in->minlen);
         return ( MBEDTLS_ERR_SSL_INVALID_MAC );
     }
 
@@ -1244,9 +1257,8 @@ crypto_decrypt_buf(
          */
         if ( ssl->in_msglen < explicit_iv_len + taglen )
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "msglen (%d) < explicit_iv_len (%d) "
-                                        "+ taglen (%d)", ssl->in_msglen,
-                                        explicit_iv_len, taglen ) );
+            Debug_LOG_ERROR("msglen (%d) < explicit_iv_len (%d) + taglen (%d)",
+                            ssl->in_msglen, explicit_iv_len, taglen);
             return ( MBEDTLS_ERR_SSL_INVALID_MAC );
         }
         dec_msglen = ssl->in_msglen - explicit_iv_len - taglen;
@@ -1265,7 +1277,8 @@ crypto_decrypt_buf(
         add_data[11] = ( ssl->in_msglen >> 8 ) & 0xFF;
         add_data[12] = ssl->in_msglen & 0xFF;
 
-        MBEDTLS_SSL_DEBUG_BUF( 4, "additional data for AEAD", add_data, 13 );
+        Debug_LOG_DEBUG("additional data for AEAD");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG,  add_data, 13 );
 
         /*
          * Prepare IV
@@ -1279,12 +1292,15 @@ crypto_decrypt_buf(
         }
         else
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "Invalid IV length" ) );
+            Debug_LOG_ERROR("Invalid IV length");
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
 
-        MBEDTLS_SSL_DEBUG_BUF( 4, "IV used", iv, transform->ivlen );
-        MBEDTLS_SSL_DEBUG_BUF( 4, "TAG used", dec_msg + dec_msglen, taglen );
+        Debug_LOG_DEBUG("IV used");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, iv, transform->ivlen );
+
+        Debug_LOG_DEBUG("TAG used");
+        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dec_msg + dec_msglen, taglen );
 
         /*
          * Decrypt and authenticate
@@ -1297,19 +1313,19 @@ crypto_decrypt_buf(
                                 dec_msg_result, &olen,
                                 dec_msg + dec_msglen, taglen ) ) != 0 )
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "auth_decrypt", ret );
+            Debug_LOG_ERROR( "auth_decrypt() failed with %d", ret );
             return ( ret );
         }
 
         if ( olen != dec_msglen )
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
+            Debug_LOG_ERROR("should never happen");
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
     }
     else
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "Cipher mode not supported" ) );
+        Debug_LOG_ERROR("Cipher mode not supported");
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
@@ -1319,8 +1335,8 @@ crypto_decrypt_buf(
              && ssl->in_msgtype != MBEDTLS_SSL_MSG_APPLICATION_DATA )
         {
             /* TLS v1.2 explicitly disallows zero-length messages which are not application data */
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "invalid zero-length message type: %d",
-                                        ssl->in_msgtype ) );
+            Debug_LOG_ERROR("invalid zero-length message type: %d",
+                            ssl->in_msgtype);
             return ( MBEDTLS_ERR_SSL_INVALID_RECORD );
         }
 
@@ -1332,8 +1348,8 @@ crypto_decrypt_buf(
          */
         if ( ssl->nb_zero > 3 )
         {
-            MBEDTLS_SSL_DEBUG_MSG( 1, ( "received four consecutive empty "
-                                        "messages, possible DoS attack" ) );
+            Debug_LOG_ERROR("received four consecutive empty "
+                            "messages, possible DoS attack");
             return ( MBEDTLS_ERR_SSL_INVALID_MAC );
         }
     }
@@ -1352,11 +1368,11 @@ crypto_decrypt_buf(
     /* The loop goes to its end iff the counter is wrapping */
     if ( i == ssl_ep_len( ssl ) )
     {
-        MBEDTLS_SSL_DEBUG_MSG( 1, ( "incoming message counter would wrap" ) );
+        Debug_LOG_ERROR("incoming message counter would wrap");
         return ( MBEDTLS_ERR_SSL_COUNTER_WRAPPING );
     }
 
-    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= decrypt buf" ) );
+    Debug_LOG_DEBUG("<= decrypt buf");
 
     return ( 0 );
 }
