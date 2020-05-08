@@ -12,6 +12,7 @@
 
 # Sources for only CRYPTO builds
 set(SOURCES_CRYPTO
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/error.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/platform.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/platform_util.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/bignum.c"
@@ -40,6 +41,7 @@ set(SOURCES_CRYPTO
 # Sources for TLS builds (note that only here we include the crypto.c, which is
 # where we implement all the crypto logic which uses OS_Crypto!)
 set(SOURCES_TLS
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/error.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/platform.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/debug.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pk.c"
@@ -55,6 +57,7 @@ set(SOURCES_TLS
 
 # Sources for CERT builds
 set(SOURCES_CERT
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/error.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/platform.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/platform_util.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/bignum.c"

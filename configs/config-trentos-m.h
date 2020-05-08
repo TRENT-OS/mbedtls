@@ -8,6 +8,9 @@
 // So we can get some debug output from the TLS protocol run
 #define MBEDTLS_DEBUG_C
 
+// So we can translate error codes to strings
+#define MBEDTLS_ERROR_C
+
 // So we can override the calloc/free functions with our own
 #define MBEDTLS_PLATFORM_C
 #define MBEDTLS_PLATFORM_MEMORY
