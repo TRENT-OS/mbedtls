@@ -2683,11 +2683,11 @@ start_processing:
 #endif
 
 #if defined(USE_OS_CRYPTO)
-        if( ( ret = crypto_verify_hash_signature(ssl,
-                                          ssl->session_negotiate->peer_cert->pk.pk_ctx,
-                                          pk_alg, md_alg,
-                                          hash, hashlen,
-                                          p, sig_len ) ) != 0 ) {
+        if( ( ret = crypto_verify_hash_signature(ssl->hCrypto,
+                                                 ssl->session_negotiate->peer_cert->pk.pk_ctx,
+                                                 pk_alg, md_alg,
+                                                 hash, hashlen,
+                                                 p, sig_len ) ) != 0 ) {
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
                                                 MBEDTLS_SSL_ALERT_MSG_DECRYPT_ERROR );
             MBEDTLS_SSL_DEBUG_RET( 1, "crypto_verify_hash_signature", ret );

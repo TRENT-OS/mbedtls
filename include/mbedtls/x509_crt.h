@@ -386,7 +386,9 @@ int mbedtls_x509_crt_verify_info( char *buf, size_t size, const char *prefix,
  *                 verification process.
  */
 int mbedtls_x509_crt_verify(
-                     mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                     OS_Crypto_Handle_t hCrypto,
+#endif
                      mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
@@ -422,7 +424,9 @@ int mbedtls_x509_crt_verify(
  *                 during the verification process.
  */
 int mbedtls_x509_crt_verify_with_profile(
-                     mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                     OS_Crypto_Handle_t hCrypto,
+#endif
                      mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
@@ -454,7 +458,9 @@ int mbedtls_x509_crt_verify_with_profile(
  *                 operations was reached: see \c mbedtls_ecp_set_max_ops().
  */
 int mbedtls_x509_crt_verify_restartable(
-                     mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                     OS_Crypto_Handle_t hCrypto,
+#endif
                      mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,

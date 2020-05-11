@@ -42,27 +42,27 @@ crypto_exchange_key(
 
 int
 crypto_verify_hash_signature(
-    mbedtls_ssl_context* ssl,
-    void*                pk_ctx,
-    mbedtls_pk_type_t    sig_type,
-    mbedtls_md_type_t    hash_type,
-    const void*          hash,
-    size_t               hash_len,
-    const void*          sig,
-    size_t               sig_len);
+    OS_Crypto_Handle_t hCrypto,
+    void*              pk_ctx,
+    mbedtls_pk_type_t  sig_type,
+    mbedtls_md_type_t  hash_type,
+    const void*        hash,
+    size_t             hash_len,
+    const void*        sig,
+    size_t             sig_len);
 
 // ------------------------------- x509_crt.c ----------------------------------
 
 int
 crypto_verify_cert_signature(
-    mbedtls_ssl_context* ssl,
-    void*                pk_ctx,
-    mbedtls_pk_type_t    sig_type,
-    mbedtls_md_type_t    hash_type,
-    const void*          cert,
-    size_t               cert_len,
-    const void*          sig,
-    size_t               sig_len);
+    OS_Crypto_Handle_t hCrypto,
+    void*              pk_ctx,
+    mbedtls_pk_type_t  sig_type,
+    mbedtls_md_type_t  hash_type,
+    const void*        cert,
+    size_t             cert_len,
+    const void*        sig,
+    size_t             sig_len);
 
 // -------------------------------- ssl_tls.c ----------------------------------
 
@@ -96,7 +96,7 @@ crypto_calc_finished(
 
 int
 crypto_import_aes_keys(
-    mbedtls_ssl_context*   ssl,
+    OS_Crypto_Handle_t     hCrypto,
     OS_CryptoKey_Handle_t* hEncKey,
     OS_CryptoKey_Handle_t* hDecKey,
     const void*            enc_bytes,

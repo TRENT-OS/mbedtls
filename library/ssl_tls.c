@@ -1072,8 +1072,9 @@ int mbedtls_ssl_derive_keys( mbedtls_ssl_context *ssl )
         || MBEDTLS_CIPHER_AES_192_GCM == cipher_info->type
         || MBEDTLS_CIPHER_AES_256_GCM == cipher_info->type)
     {
-        if ((ret = crypto_import_aes_keys(ssl, &transform->hEncKey, &transform->hDecKey,
-                                    key1, key2, cipher_info->key_bitlen >> 3)) != 0)
+        if ((ret = crypto_import_aes_keys(ssl->hCrypto,
+                                          &transform->hEncKey, &transform->hDecKey,
+                                          key1, key2, cipher_info->key_bitlen >> 3)) != 0)
         {
             MBEDTLS_SSL_DEBUG_RET( 1, "crypto_import_aes_keys", ret );
             return( ret );
@@ -5809,7 +5810,9 @@ crt_verify:
          * Main check: verify certificate
          */
         ret = mbedtls_x509_crt_verify_restartable(
-                                ssl,
+#if defined(USE_OS_CRYPTO)
+                                ssl->hCrypto,
+#endif
                                 ssl->session_negotiate->peer_cert,
                                 ca_chain, ca_crl,
                                 ssl->conf->cert_profile,

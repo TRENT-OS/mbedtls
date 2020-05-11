@@ -189,8 +189,8 @@ crypto_parse_server_ecdh_params(
 
 static int
 write_ecdh_public_key(
-    mbedtls_ssl_context* ssl,
     OS_CryptoKey_Data_t* keyData,
+    uint8_t              pointFormat,
     unsigned char*       out_msg,
     size_t*              i,
     size_t*              n)
@@ -198,7 +198,7 @@ write_ecdh_public_key(
     size_t plen;
     OS_CryptoKey_Secp256r1Pub_t* ecPub = &keyData->data.secp256r1.pub;
 
-    if (ssl->handshake->ecdh.pointFormat == MBEDTLS_ECP_PF_UNCOMPRESSED)
+    if (pointFormat == MBEDTLS_ECP_PF_UNCOMPRESSED)
     {
         out_msg[5] = 0x04;
         memcpy(&out_msg[6], ecPub->qxBytes, ecPub->qxLen);
@@ -212,7 +212,7 @@ write_ecdh_public_key(
         Debug_LOG_DEBUG("ECDH: y coord of client's public point");
         Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qyBytes, ecPub->qyLen);
     }
-    else if (ssl->handshake->ecdh.pointFormat == MBEDTLS_ECP_PF_COMPRESSED)
+    else if (pointFormat == MBEDTLS_ECP_PF_COMPRESSED)
     {
         // Compressed representation just needs the X coordinate and the SIGN
         // bit of the Y coord, so it can be recomputed from X via the curve
@@ -227,8 +227,7 @@ write_ecdh_public_key(
     }
     else
     {
-        Debug_LOG_ERROR("Unsupported ECDH point format: %02x",
-                        ssl->handshake->ecdh.pointFormat);
+        Debug_LOG_ERROR("Unsupported ECDH point format: %02x", pointFormat);
         return MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE;
     }
 
@@ -241,7 +240,6 @@ write_ecdh_public_key(
 
 static int
 write_dh_public_key(
-    mbedtls_ssl_context* ssl,
     OS_CryptoKey_Data_t* keyData,
     unsigned char*       out_msg,
     size_t*              i,
@@ -333,9 +331,10 @@ crypto_exchange_key(
 
     // Write exported key data to TLS buffer
     if ( ( (MBEDTLS_KEY_EXCHANGE_DHE_RSA == ex_type) &&
-           (ret = write_dh_public_key(ssl, &key.data, ssl->out_msg, i, n)) ) ||
+           (ret = write_dh_public_key(&key.data, ssl->out_msg, i, n)) ) ||
          ( (MBEDTLS_KEY_EXCHANGE_ECDHE_RSA == ex_type) &&
-           (ret = write_ecdh_public_key(ssl, &key.data, ssl->out_msg, i, n)) ) )
+           (ret = write_ecdh_public_key(&key.data, ssl->handshake->ecdh.pointFormat,
+                                        ssl->out_msg, i, n))))
     {
         goto err1;
     }
@@ -471,7 +470,6 @@ crypto_parse_server_dh_params(
 
 static int
 export_key(
-    mbedtls_ssl_context* ssl,
     mbedtls_pk_type_t    sig_alg,
     void*                pk_ctx,
     OS_CryptoKey_Data_t* keyData)
@@ -496,9 +494,12 @@ export_key(
         keyData->type = OS_CryptoKey_TYPE_RSA_PUB;
         hPubKey->nLen = rsa_ctx->len;
         hPubKey->eLen = rsa_ctx->len;
-        if ((ret = mbedtls_rsa_export_raw(pk_ctx, hPubKey->nBytes, hPubKey->nLen, NULL,
-                                          0,
-                                          NULL, 0, NULL, 0, hPubKey->eBytes, hPubKey->eLen)) != 0)
+        if ((ret = mbedtls_rsa_export_raw(pk_ctx,
+                                          hPubKey->nBytes, hPubKey->nLen,
+                                          NULL, 0,
+                                          NULL, 0,
+                                          NULL, 0,
+                                          hPubKey->eBytes, hPubKey->eLen)) != 0)
         {
             Debug_LOG_ERROR("mbedtls_rsa_export_raw() failed with %d", ret );
             return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -516,14 +517,14 @@ export_key(
 
 int
 crypto_verify_hash_signature(
-    mbedtls_ssl_context* ssl,
-    void*                pk_ctx,
-    mbedtls_pk_type_t    sig_type,
-    mbedtls_md_type_t    hash_type,
-    const void*          hash,
-    size_t               hash_len,
-    const void*          sig,
-    size_t               sig_len)
+    OS_Crypto_Handle_t hCrypto,
+    void*              pk_ctx,
+    mbedtls_pk_type_t  sig_type,
+    mbedtls_md_type_t  hash_type,
+    const void*        hash,
+    size_t             hash_len,
+    const void*        sig,
+    size_t             sig_len)
 {
     int ret;
     seos_err_t err;
@@ -531,13 +532,13 @@ crypto_verify_hash_signature(
     OS_CryptoKey_Handle_t hPubKey;
     OS_CryptoSignature_Handle_t hSig;
 
-    if ((ret = export_key(ssl, sig_type, pk_ctx, &keyData)) != 0)
+    if ((ret = export_key(sig_type, pk_ctx, &keyData)) != 0)
     {
         Debug_LOG_ERROR("export_key() failed with %d", ret );
         return ret;
     }
 
-    if ((err = OS_CryptoKey_import(&hPubKey, ssl->hCrypto,
+    if ((err = OS_CryptoKey_import(&hPubKey, hCrypto,
                                    &keyData)) != SEOS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
@@ -548,7 +549,7 @@ crypto_verify_hash_signature(
     switch (keyData.type)
     {
     case OS_CryptoKey_TYPE_RSA_PUB:
-        if ((err = OS_CryptoSignature_init(&hSig, ssl->hCrypto, NULL, hPubKey,
+        if ((err = OS_CryptoSignature_init(&hSig, hCrypto, NULL, hPubKey,
                                            OS_CryptoSignature_ALG_RSA_PKCS1_V15,
                                            hash_type)) != SEOS_SUCCESS)
         {
@@ -590,12 +591,12 @@ err0:
 
 static int
 hash_cert(
-    mbedtls_ssl_context* ssl,
-    mbedtls_md_type_t    hash_alg,
-    const void*          cert,
-    const size_t         cert_len,
-    void*                hash,
-    size_t*              hash_len)
+    OS_Crypto_Handle_t hCrypto,
+    mbedtls_md_type_t  hash_alg,
+    const void*        cert,
+    const size_t       cert_len,
+    void*              hash,
+    size_t*            hash_len)
 {
     int ret;
     seos_err_t err;
@@ -615,8 +616,7 @@ hash_cert(
     }
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
-                                    hash_alg)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoDigest_init(&hDigest, hCrypto, hash_alg)) != SEOS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
         goto err0;
@@ -663,20 +663,21 @@ err0:
 
 int
 crypto_verify_cert_signature(
-    mbedtls_ssl_context* ssl,
-    void*                pk_ctx,
-    mbedtls_pk_type_t    sig_type,
-    mbedtls_md_type_t    hash_type,
-    const void*          cert,
-    size_t               cert_len,
-    const void*          sig,
-    size_t               sig_len)
+    OS_Crypto_Handle_t hCrypto,
+    void*              pk_ctx,
+    mbedtls_pk_type_t  sig_type,
+    mbedtls_md_type_t  hash_type,
+    const void*        cert,
+    size_t             cert_len,
+    const void*        sig,
+    size_t             sig_len)
 {
     int ret;
     unsigned char hash[MBEDTLS_MD_MAX_SIZE];
     size_t hash_size = sizeof(hash);
 
-    if ((ret = hash_cert(ssl, hash_type, cert, cert_len, hash, &hash_size)) != 0)
+    if ((ret = hash_cert(hCrypto, hash_type, cert, cert_len, hash,
+                         &hash_size)) != 0)
     {
         Debug_LOG_ERROR("hash_cert() failed with %d", ret );
         return ret;
@@ -685,8 +686,8 @@ crypto_verify_cert_signature(
     Debug_LOG_DEBUG("Hash of certificate");
     Debug_hexDump(Debug_LOG_LEVEL_DEBUG, hash, hash_size );
 
-    return crypto_verify_hash_signature(ssl, pk_ctx, sig_type, hash_type, hash,
-                                        hash_size, sig, sig_len);
+    return crypto_verify_hash_signature(hCrypto, pk_ctx, sig_type, hash_type,
+                                        hash, hash_size, sig, sig_len);
 }
 
 // -------------------------------- ssl_tls.c ----------------------------------
@@ -921,25 +922,25 @@ out:
 
 static int
 auth_encrypt(
-    mbedtls_ssl_context* ssl,
-    OS_CryptoKey_Handle_t      hEncKey,
-    const unsigned char* iv,
-    size_t               iv_len,
-    const unsigned char* ad,
-    size_t               ad_len,
-    const unsigned char* input,
-    size_t               ilen,
-    unsigned char*       output,
-    size_t*              olen,
-    unsigned char*       tag,
-    size_t               tag_len)
+    OS_Crypto_Handle_t    hCrypto,
+    OS_CryptoKey_Handle_t hEncKey,
+    const unsigned char*  iv,
+    size_t                iv_len,
+    const unsigned char*  ad,
+    size_t                ad_len,
+    const unsigned char*  input,
+    size_t                ilen,
+    unsigned char*        output,
+    size_t*               olen,
+    unsigned char*        tag,
+    size_t                tag_len)
 {
     seos_err_t err;
     int ret;
     OS_CryptoCipher_Handle_t hCipher;
     size_t tlen = tag_len;
 
-    if ((err = OS_CryptoCipher_init(&hCipher, ssl->hCrypto, hEncKey,
+    if ((err = OS_CryptoCipher_init(&hCipher, hCrypto, hEncKey,
                                     OS_CryptoCipher_ALG_AES_GCM_ENC,
                                     iv, iv_len)) != SEOS_SUCCESS)
     {
@@ -948,7 +949,7 @@ auth_encrypt(
     }
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    if ((err = OS_CryptoCipher_start(hCipher,  ad,
+    if ((err = OS_CryptoCipher_start(hCipher, ad,
                                      ad_len)) != SEOS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_start() failed with %d", err);
@@ -983,25 +984,25 @@ err0:
 
 static int
 auth_decrypt(
-    mbedtls_ssl_context* ssl,
-    OS_CryptoKey_Handle_t      hDecKey,
-    const unsigned char* iv,
-    size_t               iv_len,
-    const unsigned char* ad,
-    size_t               ad_len,
-    const unsigned char* input,
-    size_t               ilen,
-    unsigned char*       output,
-    size_t*              olen,
-    unsigned char*       tag,
-    size_t               tag_len)
+    OS_Crypto_Handle_t    hCrypto,
+    OS_CryptoKey_Handle_t hDecKey,
+    const unsigned char*  iv,
+    size_t                iv_len,
+    const unsigned char*  ad,
+    size_t                ad_len,
+    const unsigned char*  input,
+    size_t                ilen,
+    unsigned char*        output,
+    size_t*               olen,
+    unsigned char*        tag,
+    size_t                tag_len)
 {
     int ret;
     seos_err_t err;
     OS_CryptoCipher_Handle_t hCipher;
     size_t tlen = tag_len;
 
-    if ((err = OS_CryptoCipher_init(&hCipher, ssl->hCrypto, hDecKey,
+    if ((err = OS_CryptoCipher_init(&hCipher, hCrypto, hDecKey,
                                     OS_CryptoCipher_ALG_AES_GCM_DEC,
                                     iv, iv_len)) != SEOS_SUCCESS)
     {
@@ -1044,7 +1045,7 @@ err0:
 
 int
 crypto_import_aes_keys(
-    mbedtls_ssl_context*   ssl,
+    OS_Crypto_Handle_t     hCrypto,
     OS_CryptoKey_Handle_t* hEncKey,
     OS_CryptoKey_Handle_t* hDecKey,
     const void*            enc_bytes,
@@ -1061,8 +1062,7 @@ crypto_import_aes_keys(
     };
 
     memcpy(keyData.data.aes.bytes, enc_bytes, key_len);
-    if ((err = OS_CryptoKey_import(hEncKey, ssl->hCrypto,
-                                   &keyData)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_import(hEncKey, hCrypto, &keyData)) != SEOS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err );
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -1071,8 +1071,7 @@ crypto_import_aes_keys(
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
 
     memcpy(keyData.data.aes.bytes, dec_bytes, key_len);
-    if ((err = OS_CryptoKey_import(hDecKey, ssl->hCrypto,
-                                   &keyData)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_import(hDecKey, hCrypto, &keyData)) != SEOS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         goto err0;
@@ -1182,7 +1181,7 @@ crypto_encrypt_buf(
          * Encrypt and authenticate
          */
         olen = enc_msglen;
-        if ((ret = auth_encrypt(ssl, transform->hEncKey,
+        if ((ret = auth_encrypt(ssl->hCrypto, transform->hEncKey,
                                 iv, transform->ivlen,
                                 add_data, 13,
                                 enc_msg, enc_msglen,
@@ -1306,7 +1305,7 @@ crypto_decrypt_buf(
          * Decrypt and authenticate
          */
         olen = dec_msglen;
-        if ((ret = auth_decrypt(ssl, transform->hDecKey,
+        if ((ret = auth_decrypt(ssl->hCrypto, transform->hDecKey,
                                 iv, transform->ivlen,
                                 add_data, 13,
                                 dec_msg, dec_msglen,

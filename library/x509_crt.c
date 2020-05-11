@@ -1892,8 +1892,7 @@ static int x509_crt_verifycrl( mbedtls_x509_crt *crt, mbedtls_x509_crt *ca,
 /*
  * Check the signature of a certificate by its parent
  */
-static int x509_crt_check_signature( mbedtls_ssl_context *ssl,
-                                     const mbedtls_x509_crt *child,
+static int x509_crt_check_signature( const mbedtls_x509_crt *child,
                                      mbedtls_x509_crt *parent,
                                      mbedtls_x509_crt_restart_ctx *rs_ctx )
 {
@@ -2009,7 +2008,9 @@ static int x509_crt_check_parent( const mbedtls_x509_crt *child,
  *  - MBEDTLS_ERR_ECP_IN_PROGRESS otherwise
  */
 static int x509_crt_find_parent_in(
-                        mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                        OS_Crypto_Handle_t hCrypto,
+#endif
                         mbedtls_x509_crt *child,
                         mbedtls_x509_crt *candidates,
                         mbedtls_x509_crt **r_parent,
@@ -2064,9 +2065,12 @@ check_signature:
 #endif
 
 #if defined(USE_OS_CRYPTO)
-        ret = crypto_verify_cert_signature(ssl, parent->pk.pk_ctx, child->sig_pk, child->sig_md, child->tbs.p, child->tbs.len, child->sig.p, child->sig.len);
+        ret = crypto_verify_cert_signature(hCrypto, parent->pk.pk_ctx,
+                                           child->sig_pk, child->sig_md,
+                                           child->tbs.p, child->tbs.len,
+                                           child->sig.p, child->sig.len);
 #else
-        ret = x509_crt_check_signature( ssl, child, parent, rs_ctx );
+        ret = x509_crt_check_signature( child, parent, rs_ctx );
 #endif
 
 #if defined(MBEDTLS_ECDSA_C) && defined(MBEDTLS_ECP_RESTARTABLE)
@@ -2140,7 +2144,9 @@ check_signature:
  *  - MBEDTLS_ERR_ECP_IN_PROGRESS otherwise
  */
 static int x509_crt_find_parent(
-                        mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                        OS_Crypto_Handle_t hCrypto,
+#endif
                         mbedtls_x509_crt *child,
                         mbedtls_x509_crt *trust_ca,
                         mbedtls_x509_crt **parent,
@@ -2167,10 +2173,18 @@ static int x509_crt_find_parent(
     while( 1 ) {
         search_list = *parent_is_trusted ? trust_ca : child->next;
 
-        ret = x509_crt_find_parent_in( ssl, child, search_list,
+#if defined(USE_OS_CRYPTO)
+        ret = x509_crt_find_parent_in( hCrypto, child, search_list,
                                        parent, signature_is_good,
                                        *parent_is_trusted,
                                        path_cnt, self_cnt, rs_ctx );
+
+#else
+        ret = x509_crt_find_parent_in( child, search_list,
+                                       parent, signature_is_good,
+                                       *parent_is_trusted,
+                                       path_cnt, self_cnt, rs_ctx );
+#endif
 
 #if defined(MBEDTLS_ECDSA_C) && defined(MBEDTLS_ECP_RESTARTABLE)
         if( rs_ctx != NULL && ret == MBEDTLS_ERR_ECP_IN_PROGRESS )
@@ -2272,7 +2286,9 @@ static int x509_crt_check_ee_locally_trusted(
  *      even if it was found to be invalid
  */
 static int x509_crt_verify_chain(
-                mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                OS_Crypto_Handle_t hCrypto,
+#endif
                 mbedtls_x509_crt *crt,
                 mbedtls_x509_crt *trust_ca,
                 mbedtls_x509_crl *ca_crl,
@@ -2350,10 +2366,17 @@ static int x509_crt_verify_chain(
 #if defined(MBEDTLS_ECDSA_C) && defined(MBEDTLS_ECP_RESTARTABLE)
 find_parent:
 #endif
+
         /* Look for a parent in trusted CAs or up the chain */
-        ret = x509_crt_find_parent( ssl, child, trust_ca, &parent,
+#if defined(USE_OS_CRYPTO)
+        ret = x509_crt_find_parent( hCrypto, child, trust_ca, &parent,
                                     &parent_is_trusted, &signature_is_good,
                                     ver_chain->len - 1, self_cnt, rs_ctx );
+#else
+        ret = x509_crt_find_parent( child, trust_ca, &parent,
+                                    &parent_is_trusted, &signature_is_good,
+                                    ver_chain->len - 1, self_cnt, rs_ctx );
+#endif
 
 #if defined(MBEDTLS_ECDSA_C) && defined(MBEDTLS_ECP_RESTARTABLE)
         if( rs_ctx != NULL && ret == MBEDTLS_ERR_ECP_IN_PROGRESS )
@@ -2510,7 +2533,9 @@ static int x509_crt_merge_flags_with_cb(
  * Verify the certificate validity (default profile, not restartable)
  */
 int mbedtls_x509_crt_verify(
-                     mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                     OS_Crypto_Handle_t hCrypto,
+#endif
                      mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
@@ -2518,16 +2543,24 @@ int mbedtls_x509_crt_verify(
                      int (*f_vrfy)(void *, mbedtls_x509_crt *, int, uint32_t *),
                      void *p_vrfy )
 {
-    return( mbedtls_x509_crt_verify_restartable( ssl, crt, trust_ca, ca_crl,
+#if defined(USE_OS_CRYPTO)
+    return( mbedtls_x509_crt_verify_restartable( hCrypto, crt, trust_ca, ca_crl,
                 &mbedtls_x509_crt_profile_default, cn, flags,
                 f_vrfy, p_vrfy, NULL ) );
+#else
+    return( mbedtls_x509_crt_verify_restartable( crt, trust_ca, ca_crl,
+                &mbedtls_x509_crt_profile_default, cn, flags,
+                f_vrfy, p_vrfy, NULL ) );
+#endif
 }
 
 /*
  * Verify the certificate validity (user-chosen profile, not restartable)
  */
 int mbedtls_x509_crt_verify_with_profile(
-                     mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                     OS_Crypto_Handle_t hCrypto,
+#endif
                      mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
@@ -2536,8 +2569,13 @@ int mbedtls_x509_crt_verify_with_profile(
                      int (*f_vrfy)(void *, mbedtls_x509_crt *, int, uint32_t *),
                      void *p_vrfy )
 {
-    return( mbedtls_x509_crt_verify_restartable( ssl, crt, trust_ca, ca_crl,
+#if defined(USE_OS_CRYPTO)
+    return( mbedtls_x509_crt_verify_restartable( hCrypto, crt, trust_ca, ca_crl,
                 profile, cn, flags, f_vrfy, p_vrfy, NULL ) );
+#else
+    return( mbedtls_x509_crt_verify_restartable( crt, trust_ca, ca_crl,
+                profile, cn, flags, f_vrfy, p_vrfy, NULL ) );
+#endif
 }
 
 /*
@@ -2551,7 +2589,9 @@ int mbedtls_x509_crt_verify_with_profile(
  *  - then calls the callback and merges the flags
  */
 int mbedtls_x509_crt_verify_restartable(
-                     mbedtls_ssl_context *ssl,
+#if defined(USE_OS_CRYPTO)
+                     OS_Crypto_Handle_t hCrypto,
+#endif
                      mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
@@ -2590,8 +2630,12 @@ int mbedtls_x509_crt_verify_restartable(
         ee_flags |= MBEDTLS_X509_BADCERT_BAD_KEY;
 
     /* Check the chain */
-    ret = x509_crt_verify_chain( ssl, crt, trust_ca, ca_crl, profile,
+#if defined(USE_OS_CRYPTO)
+    ret = x509_crt_verify_chain( hCrypto, crt, trust_ca, ca_crl, profile,
                                  &ver_chain, rs_ctx );
+#else
+    ret = x509_crt_verify_chain( crt, trust_ca, ca_crl, profile, &ver_chain, rs_ctx );
+#endif
 
     if( ret != 0 )
         goto exit;
