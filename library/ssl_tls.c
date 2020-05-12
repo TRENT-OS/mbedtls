@@ -36,7 +36,7 @@
 #if defined(MBEDTLS_SSL_TLS_C)
 
 #if defined(USE_OS_CRYPTO)
-#include "mbedtls/crypto.h"
+#include "mbedtls/trentos_ssl_tls.h"
 #endif
 
 #if defined(MBEDTLS_PLATFORM_C)
@@ -658,9 +658,9 @@ int mbedtls_ssl_derive_keys( mbedtls_ssl_context *ssl )
     if( ssl->minor_ver == MBEDTLS_SSL_MINOR_VERSION_3 &&
         transform->ciphersuite_info->mac != MBEDTLS_MD_SHA384 )
     {
-        handshake->tls_prf = crypto_tls_prf;
-        handshake->calc_verify = crypto_calc_verify;
-        handshake->calc_finished = crypto_calc_finished;
+        handshake->tls_prf = trentos_ssl_tls_tls_prf;
+        handshake->calc_verify = trentos_ssl_tls_calc_verify;
+        handshake->calc_finished = trentos_ssl_tls_calc_finished;
     }
     else
     {
@@ -1072,11 +1072,11 @@ int mbedtls_ssl_derive_keys( mbedtls_ssl_context *ssl )
         || MBEDTLS_CIPHER_AES_192_GCM == cipher_info->type
         || MBEDTLS_CIPHER_AES_256_GCM == cipher_info->type)
     {
-        if ((ret = crypto_import_aes_keys(ssl->hCrypto,
+        if ((ret = trentos_ssl_tls_import_aes_keys(ssl->hCrypto,
                                           &transform->hEncKey, &transform->hDecKey,
                                           key1, key2, cipher_info->key_bitlen >> 3)) != 0)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "crypto_import_aes_keys", ret );
+            MBEDTLS_SSL_DEBUG_RET( 1, "trentos_ssl_tls_import_aes_keys", ret );
             return( ret );
         }
         transform->encKeyUsed = 1;
@@ -3437,9 +3437,9 @@ int mbedtls_ssl_write_record( mbedtls_ssl_context *ssl, uint8_t force_flush )
         if( ssl->transform_out != NULL )
         {
 #if defined(USE_OS_CRYPTO)
-            if( ( ret = crypto_encrypt_buf( ssl ) ) != 0 )
+            if( ( ret = trentos_ssl_tls_encrypt_buf( ssl ) ) != 0 )
             {
-                MBEDTLS_SSL_DEBUG_RET( 1, "crypto_encrypt_buf", ret );
+                MBEDTLS_SSL_DEBUG_RET( 1, "trentos_ssl_tls_encrypt_buf", ret );
                 return( ret );
             }
 #else
@@ -4308,9 +4308,9 @@ static int ssl_prepare_record_content( mbedtls_ssl_context *ssl )
     if( !done && ssl->transform_in != NULL )
     {
 #if defined(USE_OS_CRYPTO)
-        if( ( ret = crypto_decrypt_buf( ssl ) ) != 0 )
+        if( ( ret = trentos_ssl_tls_decrypt_buf( ssl ) ) != 0 )
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "crypto_decrypt_buf", ret );
+            MBEDTLS_SSL_DEBUG_RET( 1, "trentos_ssl_tls_decrypt_buf", ret );
             return( ret );
         }
 #else
@@ -6043,7 +6043,7 @@ void mbedtls_ssl_optimize_checksum( mbedtls_ssl_context *ssl,
 
 #if defined(USE_OS_CRYPTO)
     if( ciphersuite_info->mac != MBEDTLS_MD_SHA384 )
-        ssl->handshake->update_checksum = crypto_update_checksum;
+        ssl->handshake->update_checksum = trentos_ssl_tls_update_checksum;
     else
     {
         MBEDTLS_SSL_DEBUG_MSG( 1, ( "MAC algorithm is not supported" ) );
@@ -9765,7 +9765,7 @@ int mbedtls_ssl_set_calc_verify_md( mbedtls_ssl_context *ssl, int md )
 #if defined(USE_OS_CRYPTO)
     if (MBEDTLS_SSL_MINOR_VERSION_3 == ssl->minor_ver &&
         MBEDTLS_SSL_HASH_SHA256     == md)
-        ssl->handshake->calc_verify = crypto_calc_verify;
+        ssl->handshake->calc_verify = trentos_ssl_tls_calc_verify;
     else
         return MBEDTLS_ERR_SSL_INVALID_VERIFY_HASH;
     return 0;

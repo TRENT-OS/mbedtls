@@ -40,7 +40,7 @@
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 
 #if defined(USE_OS_CRYPTO)
-#include "mbedtls/crypto.h"
+#include "mbedtls/trentos_x509_crt.h"
 #endif
 
 #include "mbedtls/x509_crt.h"
@@ -2065,7 +2065,7 @@ check_signature:
 #endif
 
 #if defined(USE_OS_CRYPTO)
-        ret = crypto_verify_cert_signature(hCrypto, parent->pk.pk_ctx,
+        ret = trentos_x509_crt_verify_signature(hCrypto, parent->pk.pk_ctx,
                                            child->sig_pk, child->sig_md,
                                            child->tbs.p, child->tbs.len,
                                            child->sig.p, child->sig.len);

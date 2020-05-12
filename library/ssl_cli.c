@@ -28,7 +28,7 @@
 #if defined(MBEDTLS_SSL_CLI_C)
 
 #if defined(USE_OS_CRYPTO)
-#include "mbedtls/crypto.h"
+#include "mbedtls/trentos_ssl_cli.h"
 #endif
 
 #if defined(MBEDTLS_PLATFORM_C)
@@ -2437,7 +2437,7 @@ start_processing:
 #if defined(USE_OS_CRYPTO)
     if(ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA)
     {
-        if(crypto_parse_server_dh_params( ssl, &p, end ) != 0 )
+        if(trentos_ssl_cli_parse_server_dh_params( ssl, &p, end ) != 0 )
         {
             MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
@@ -2448,7 +2448,7 @@ start_processing:
     }
     else if(ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA)
     {
-        if( crypto_parse_server_ecdh_params( ssl, &p, end ) != 0 )
+        if( trentos_ssl_cli_parse_server_ecdh_params( ssl, &p, end ) != 0 )
         {
             MBEDTLS_SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
@@ -2683,14 +2683,14 @@ start_processing:
 #endif
 
 #if defined(USE_OS_CRYPTO)
-        if( ( ret = crypto_verify_hash_signature(ssl->hCrypto,
+        if( ( ret = trentos_ssl_cli_verify_signature(ssl->hCrypto,
                                                  ssl->session_negotiate->peer_cert->pk.pk_ctx,
                                                  pk_alg, md_alg,
                                                  hash, hashlen,
                                                  p, sig_len ) ) != 0 ) {
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
                                                 MBEDTLS_SSL_ALERT_MSG_DECRYPT_ERROR );
-            MBEDTLS_SSL_DEBUG_RET( 1, "crypto_verify_hash_signature", ret );
+            MBEDTLS_SSL_DEBUG_RET( 1, "trentos_ssl_cli_verify_signature", ret );
             return ret;
         }
 #else
@@ -2957,9 +2957,9 @@ static int ssl_write_client_key_exchange( mbedtls_ssl_context *ssl )
     if (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_RSA ||
         ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_RSA)
     {
-        if((ret = crypto_exchange_key(ssl, ciphersuite_info->key_exchange, &i, &n)) != 0)
+        if((ret = trentos_ssl_cli_exchange_key(ssl, ciphersuite_info->key_exchange, &i, &n)) != 0)
         {
-            MBEDTLS_SSL_DEBUG_RET( 1, "crypto_exchange_key", ret );
+            MBEDTLS_SSL_DEBUG_RET( 1, "trentos_ssl_cli_exchange_key", ret );
             return( ret );
         }
     }

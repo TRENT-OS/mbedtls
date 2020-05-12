@@ -49,10 +49,12 @@ set(SOURCES_TLS
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pkparse.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/ssl_ciphersuites.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/ssl_cli.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_ssl_cli.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/ssl_tls.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_ssl_tls.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/x509.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/x509_crt.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/library/crypto.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_x509_crt.c"
 )
 
 # Sources for CERT builds
@@ -82,6 +84,8 @@ set(SOURCES_CERT
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pkparse.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/x509.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/x509_crt.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_ssl_cli.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_x509_crt.c"
 )
 
 set(COMPILE_OTIONS
@@ -133,8 +137,8 @@ target_include_directories(${PROJECT_NAME}
 target_compile_options(${PROJECT_NAME}
     INTERFACE
        ${COMPILE_OPTIONS}
-       # Only in this case we want to enable the use of OS_Crypto in mbedTLS, this
-       # requires crypto.c compiled with the lib
+       # We need to use the modified version of mbedTLS functions which delegates
+       # all cryptographic operations to the TRENTOS-M crypto
        -DUSE_OS_CRYPTO
 )
 
@@ -162,6 +166,9 @@ target_include_directories(${PROJECT_NAME}
 target_compile_options(${PROJECT_NAME}
     INTERFACE
        ${COMPILE_OPTIONS}
+       # We need to use the modified x509 routines so we can verify certs with
+       # the TRENTOS-M crypto
+       -DUSE_OS_CRYPTO
 )
 
 target_compile_definitions(${PROJECT_NAME}
