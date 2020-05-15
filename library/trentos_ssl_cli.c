@@ -170,10 +170,10 @@ trentos_ssl_cli_parse_server_ecdh_params(
     }
 
     Debug_LOG_DEBUG("ECDH: x coord of server's point");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qxBytes, ecPub->qxLen);
+    Debug_DUMP_DEBUG(ecPub->qxBytes, ecPub->qxLen);
 
     Debug_LOG_DEBUG("ECDH: y coord of server's point");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qyBytes, ecPub->qyLen);
+    Debug_DUMP_DEBUG(ecPub->qyBytes, ecPub->qyLen);
 
     if ((err = OS_CryptoKey_import(&ssl->handshake->hPubKey, ssl->hCrypto,
                                    &keyData)) != SEOS_SUCCESS)
@@ -205,10 +205,10 @@ write_ecdh_public_key(
         plen = ecPub->qxLen + ecPub->qyLen + 1;
 
         Debug_LOG_DEBUG("ECDH: x coord of client's public point");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qxBytes, ecPub->qxLen);
+        Debug_DUMP_DEBUG(ecPub->qxBytes, ecPub->qxLen);
 
         Debug_LOG_DEBUG("ECDH: y coord of client's public point");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qyBytes, ecPub->qyLen);
+        Debug_DUMP_DEBUG(ecPub->qyBytes, ecPub->qyLen);
     }
     else if (pointFormat == MBEDTLS_ECP_PF_COMPRESSED)
     {
@@ -221,7 +221,7 @@ write_ecdh_public_key(
         plen = ecPub->qxLen + 1;
 
         Debug_LOG_DEBUG("ECDH: x coord of client's public point (compressed)");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ecPub->qxBytes, ecPub->qxLen);
+        Debug_DUMP_DEBUG(ecPub->qxBytes, ecPub->qxLen);
     }
     else
     {
@@ -246,7 +246,7 @@ write_dh_public_key(
     OS_CryptoKey_DhPub_t* dhPub = &keyData->data.dh.pub;
 
     Debug_LOG_DEBUG("DH: client's public G*x value");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->gxBytes, dhPub->gxLen);
+    Debug_DUMP_DEBUG(dhPub->gxBytes, dhPub->gxLen);
 
     // Write public param back to server
     out_msg[4] = (unsigned char)( dhPub->params.pLen >> 8 );
@@ -452,16 +452,16 @@ trentos_ssl_cli_parse_server_dh_params(
     }
 
     Debug_LOG_DEBUG("DH: shared P value");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->params.pBytes, dhPub->params.pLen );
+    Debug_DUMP_DEBUG(dhPub->params.pBytes, dhPub->params.pLen);
 
     Debug_LOG_DEBUG("DH: shared G value");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->params.gBytes, dhPub->params.gLen );
+    Debug_DUMP_DEBUG(dhPub->params.gBytes, dhPub->params.gLen);
 
     // Note: The view here is that the public param is "theirs", that is why here it
     // is called GY. We only have "our" keys (public / private), where we have the
     // secret param X and thus GX as name for the public value!
     Debug_LOG_DEBUG("DH: server's public G*y value");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dhPub->gxBytes, dhPub->gxLen );
+    Debug_DUMP_DEBUG(dhPub->gxBytes, dhPub->gxLen);
 
     return ( 0 );
 }

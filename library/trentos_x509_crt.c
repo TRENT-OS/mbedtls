@@ -116,7 +116,7 @@ trentos_x509_crt_verify_signature(
     }
 
     Debug_LOG_DEBUG("Hash of certificate");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, hash, hash_size );
+    Debug_DUMP_DEBUG(hash, hash_size);
 
     return trentos_ssl_cli_verify_signature(hCrypto, pk_ctx, sig_type, hash_type,
                                             hash, hash_size, sig, sig_len);

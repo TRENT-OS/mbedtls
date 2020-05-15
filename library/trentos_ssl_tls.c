@@ -160,7 +160,7 @@ trentos_ssl_tls_calc_verify(
     }
 
     Debug_LOG_DEBUG("calculated verify result");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG, hash, 32 );
+    Debug_DUMP_DEBUG(hash, 32);
 
     Debug_LOG_DEBUG("<= calc verify");
 
@@ -235,7 +235,7 @@ trentos_ssl_tls_calc_finished(
                              padbuf, 32, buf, len );
 
     Debug_LOG_DEBUG("calculated finished result");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG,  buf, len );
+    Debug_DUMP_DEBUG(buf, len);
 
 out:
     if ((err = OS_CryptoDigest_free(hDigest)) != SEOS_SUCCESS)
@@ -441,7 +441,7 @@ trentos_ssl_tls_encrypt_buf(
     mode = mbedtls_cipher_get_cipher_mode( &ssl->transform_out->cipher_ctx_enc );
 
     Debug_LOG_DEBUG("before encrypt: output payload");
-    Debug_hexDump(Debug_LOG_LEVEL_DEBUG,  ssl->out_msg, ssl->out_msglen );
+    Debug_DUMP_DEBUG(ssl->out_msg, ssl->out_msglen);
 
     /*
      * Encrypt
@@ -469,7 +469,7 @@ trentos_ssl_tls_encrypt_buf(
         add_data[12] = ssl->out_msglen & 0xFF;
 
         Debug_LOG_DEBUG("additional data for AEAD");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, add_data, 13 );
+        Debug_DUMP_DEBUG(add_data, 13);
 
         /*
          * Generate IV
@@ -489,10 +489,10 @@ trentos_ssl_tls_encrypt_buf(
         }
 
         Debug_LOG_DEBUG("IV used (internal)");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, iv, transform->ivlen );
+        Debug_DUMP_DEBUG(iv, transform->ivlen);
 
         Debug_LOG_DEBUG("IV used (transmitted)");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, ssl->out_iv, explicit_ivlen );
+        Debug_DUMP_DEBUG(ssl->out_iv, explicit_ivlen);
 
         /*
          * Fix message length with added IV
@@ -530,7 +530,7 @@ trentos_ssl_tls_encrypt_buf(
         ssl->out_msglen += taglen;
 
         Debug_LOG_DEBUG("after encrypt: tag");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, enc_msg + enc_msglen, taglen );
+        Debug_DUMP_DEBUG(enc_msg + enc_msglen, taglen);
     }
     else
     {
@@ -605,7 +605,7 @@ trentos_ssl_tls_decrypt_buf(
         add_data[12] = ssl->in_msglen & 0xFF;
 
         Debug_LOG_DEBUG("additional data for AEAD");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG,  add_data, 13 );
+        Debug_DUMP_DEBUG(add_data, 13);
 
         /*
          * Prepare IV
@@ -624,10 +624,10 @@ trentos_ssl_tls_decrypt_buf(
         }
 
         Debug_LOG_DEBUG("IV used");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, iv, transform->ivlen );
+        Debug_DUMP_DEBUG(iv, transform->ivlen);
 
         Debug_LOG_DEBUG("TAG used");
-        Debug_hexDump(Debug_LOG_LEVEL_DEBUG, dec_msg + dec_msglen, taglen );
+        Debug_DUMP_DEBUG(dec_msg + dec_msglen, taglen);
 
         /*
          * Decrypt and authenticate
