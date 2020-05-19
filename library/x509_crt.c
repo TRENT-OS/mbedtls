@@ -329,7 +329,7 @@ static int x509_string_cmp( const mbedtls_x509_buf *a, const mbedtls_x509_buf *b
  *
  * Return 0 if equal, -1 otherwise.
  */
-static int x509_name_cmp( const mbedtls_x509_name *a, const mbedtls_x509_name *b )
+int x509_name_cmp( const mbedtls_x509_name *a, const mbedtls_x509_name *b )
 {
     /* Avoid recursion, it might not be optimised by the compiler */
     while( a != NULL || b != NULL )

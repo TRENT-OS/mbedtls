@@ -470,6 +470,16 @@ int mbedtls_x509_crt_verify_restartable(
                      void *p_vrfy,
                      mbedtls_x509_crt_restart_ctx *rs_ctx );
 
+/**
+ * \brief          Compare two X509 name fields
+ *
+ * \param a        first name
+ * \param b        second name
+ *
+ * \return         0 if names are equal
+ */
+int x509_name_cmp( const mbedtls_x509_name *a, const mbedtls_x509_name *b );
+
 #if defined(MBEDTLS_X509_CHECK_KEY_USAGE)
 /**
  * \brief          Check usage of certificate against keyUsage extension.
