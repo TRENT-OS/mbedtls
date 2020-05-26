@@ -474,6 +474,8 @@ trentos_ssl_cli_export_cert_key(
 {
     int ret;
 
+    memset(keyData, 0, sizeof(OS_CryptoKey_Data_t));
+
     keyData->attribs.exportable = true;
     switch (sig_alg)
     {
