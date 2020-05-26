@@ -117,7 +117,7 @@ trentos_ssl_cli_parse_server_ecdh_params(
     unsigned char**      p,
     unsigned char*       end)
 {
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoKey_Data_t keyData =
     {
         .type = OS_CryptoKey_TYPE_SECP256R1_PUB,
@@ -267,7 +267,7 @@ trentos_ssl_cli_exchange_key(
     size_t*                     n)
 {
     int ret;
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoKey_Handle_t hPrvKey, hPubKey;
     OS_CryptoAgreement_Handle_t hAgree;
     OS_CryptoAgreement_Alg_t algEx;
@@ -409,7 +409,7 @@ trentos_ssl_cli_parse_server_dh_params(
     unsigned char**      p,
     unsigned char*       end)
 {
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoKey_Data_t keyData =
     {
         .type = OS_CryptoKey_TYPE_DH_PUB,
@@ -525,7 +525,7 @@ trentos_ssl_cli_verify_signature(
     size_t             sig_len)
 {
     int ret;
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoKey_Data_t keyData;
     OS_CryptoKey_Handle_t hPubKey;
     OS_CryptoSignature_Handle_t hSig;

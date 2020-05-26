@@ -31,7 +31,7 @@ hash_cert(
     size_t*            hash_len)
 {
     int ret;
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoDigest_Handle_t hDigest;
     size_t cert_offs, cert_left, next_len;
 

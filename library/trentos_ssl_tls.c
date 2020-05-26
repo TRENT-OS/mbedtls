@@ -35,7 +35,7 @@ trentos_ssl_tls_tls_prf(
     size_t i, j, k, md_len;
     unsigned char tmp[128];
     unsigned char h_i[MBEDTLS_MD_MAX_SIZE];
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoMac_Handle_t hMac;
 
     md_len = OS_CryptoMac_SIZE_HMAC_SHA256;
@@ -134,7 +134,7 @@ trentos_ssl_tls_calc_verify(
     unsigned char        hash[32])
 {
     size_t len = 32;
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoDigest_Handle_t hDigest;
 
     if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
@@ -177,7 +177,7 @@ trentos_ssl_tls_update_checksum(
     const unsigned char* buf,
     size_t               len)
 {
-    seos_err_t err;
+    OS_Error_t err;
     if ((err = OS_CryptoDigest_process(ssl->handshake->hSessHash,
                                        buf, len)) != SEOS_SUCCESS)
     {
@@ -193,7 +193,7 @@ trentos_ssl_tls_calc_finished(
 {
     int len = 12;
     const char* sender;
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoDigest_Handle_t hDigest;
     unsigned char padbuf[32];
     size_t hashLen = sizeof(padbuf);
@@ -263,7 +263,7 @@ auth_encrypt(
     unsigned char*        tag,
     size_t                tag_len)
 {
-    seos_err_t err;
+    OS_Error_t err;
     int ret;
     OS_CryptoCipher_Handle_t hCipher;
     size_t tlen = tag_len;
@@ -326,7 +326,7 @@ auth_decrypt(
     size_t                tag_len)
 {
     int ret;
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoCipher_Handle_t hCipher;
     size_t tlen = tag_len;
 
@@ -381,7 +381,7 @@ trentos_ssl_tls_import_aes_keys(
     size_t                 key_len)
 {
     int ret;
-    seos_err_t err;
+    OS_Error_t err;
     OS_CryptoKey_Data_t keyData =
     {
         .type               = OS_CryptoKey_TYPE_AES,

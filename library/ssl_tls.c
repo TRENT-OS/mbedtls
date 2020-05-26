@@ -6078,7 +6078,7 @@ void mbedtls_ssl_optimize_checksum( mbedtls_ssl_context *ssl,
 void mbedtls_ssl_reset_checksum( mbedtls_ssl_context *ssl )
 {
 #if defined(USE_OS_CRYPTO)
-    seos_err_t err;
+    OS_Error_t err;
     // Just re-init the digest for a reset of the handhake
     if ((err = OS_CryptoDigest_free(ssl->handshake->hSessHash)) != SEOS_SUCCESS)
     {
@@ -6111,7 +6111,7 @@ static void ssl_update_checksum_start( mbedtls_ssl_context *ssl,
                                        const unsigned char *buf, size_t len )
 {
 #if defined(USE_OS_CRYPTO)
-    seos_err_t err;
+    OS_Error_t err;
     if ((err = OS_CryptoDigest_process(ssl->handshake->hSessHash,
                              buf, len)) != SEOS_SUCCESS)
     {
@@ -6704,7 +6704,7 @@ static void ssl_handshake_params_init( mbedtls_ssl_context *ssl,
     memset( handshake, 0, sizeof( mbedtls_ssl_handshake_params ) );
 
 #if defined(USE_OS_CRYPTO)
-    seos_err_t err;
+    OS_Error_t err;
     if ((err = OS_CryptoDigest_init(&ssl->handshake->hSessHash, ssl->hCrypto,
                              OS_CryptoDigest_ALG_SHA256)) != SEOS_SUCCESS)
     {
@@ -8883,7 +8883,7 @@ void mbedtls_ssl_transform_free( mbedtls_ssl_context *ssl,
     mbedtls_md_free( &transform->md_ctx_dec );
 
 #if defined(USE_OS_CRYPTO)
-    seos_err_t err;
+    OS_Error_t err;
     if (transform->encKeyUsed)
     {
         if ((err = OS_CryptoKey_free(transform->hEncKey)) != SEOS_SUCCESS)
@@ -8971,7 +8971,7 @@ void mbedtls_ssl_handshake_free( mbedtls_ssl_context *ssl )
 #endif /* MBEDTLS_SSL_ASYNC_PRIVATE */
 
 #if defined(USE_OS_CRYPTO)
-    seos_err_t err;
+    OS_Error_t err;
     if ((err = OS_CryptoDigest_free(ssl->handshake->hSessHash)) != SEOS_SUCCESS)
     {
         MBEDTLS_SSL_DEBUG_RET( 1, "OS_CryptoDigest_free", err );
