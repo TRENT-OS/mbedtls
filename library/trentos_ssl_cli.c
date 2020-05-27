@@ -176,7 +176,7 @@ trentos_ssl_cli_parse_server_ecdh_params(
     Debug_DUMP_DEBUG(ecPub->qyBytes, ecPub->qyLen);
 
     if ((err = OS_CryptoKey_import(&ssl->handshake->hPubKey, ssl->hCrypto,
-                                   &keyData)) != SEOS_SUCCESS)
+                                   &keyData)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -287,7 +287,7 @@ trentos_ssl_cli_exchange_key(
         // Extract public server params (P,G) from public key into generator spec
         size_t sz = sizeof(OS_CryptoKey_DhParams_t);
         if ((err = OS_CryptoKey_getParams(ssl->handshake->hPubKey,
-                                          &key.spec.key.params.dh, &sz)) != SEOS_SUCCESS)
+                                          &key.spec.key.params.dh, &sz)) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoKey_getParams() failed with %d", err);
             return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -307,7 +307,7 @@ trentos_ssl_cli_exchange_key(
 
     // Generate private key and make public key from it
     if ((err = OS_CryptoKey_generate(&hPrvKey, ssl->hCrypto,
-                                     &key.spec)) != SEOS_SUCCESS)
+                                     &key.spec)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_generate() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -315,13 +315,13 @@ trentos_ssl_cli_exchange_key(
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     if ((err = OS_CryptoKey_makePublic(&hPubKey, ssl->hCrypto, hPrvKey,
-                                       &key.spec.key.attribs)) != SEOS_SUCCESS)
+                                       &key.spec.key.attribs)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_makePublic() failed with %d", err);
         goto err0;
     }
     // Export public key
-    if ((err = OS_CryptoKey_export(hPubKey, &key.data)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_export(hPubKey, &key.data)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_export() failed with %d", err);
         goto err1;
@@ -341,30 +341,30 @@ trentos_ssl_cli_exchange_key(
     // of the server agree on a shared secret!
     ssl->handshake->pmslen = MBEDTLS_PREMASTER_SIZE;
     if ((err = OS_CryptoAgreement_init(&hAgree, ssl->hCrypto, hPrvKey,
-                                       algEx)) != SEOS_SUCCESS)
+                                       algEx)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoAgreement_init() failed with %d", err);
         goto err1;
     }
     if ((err = OS_CryptoAgreement_agree(hAgree, ssl->handshake->hPubKey,
-                                        ssl->handshake->premaster, &ssl->handshake->pmslen)) != SEOS_SUCCESS)
+                                        ssl->handshake->premaster, &ssl->handshake->pmslen)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoAgreement_agree() failed with %d", err);
     }
 
     ret = 0;
 
-    if ((err = OS_CryptoAgreement_free(hAgree)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoAgreement_free(hAgree)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoAgreement_free() failed with %d", err);
     }
 err1:
-    if ((err = OS_CryptoKey_free(hPubKey)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_free(hPubKey)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
     }
 err0:
-    if ((err = OS_CryptoKey_free(hPrvKey)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_free(hPrvKey)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
     }
@@ -445,7 +445,7 @@ trentos_ssl_cli_parse_server_dh_params(
     }
 
     if ((err = OS_CryptoKey_import(&ssl->handshake->hPubKey, ssl->hCrypto,
-                                   &keyData)) != SEOS_SUCCESS)
+                                   &keyData)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -537,7 +537,7 @@ trentos_ssl_cli_verify_signature(
     }
 
     if ((err = OS_CryptoKey_import(&hPubKey, hCrypto,
-                                   &keyData)) != SEOS_SUCCESS)
+                                   &keyData)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -549,7 +549,7 @@ trentos_ssl_cli_verify_signature(
     case OS_CryptoKey_TYPE_RSA_PUB:
         if ((err = OS_CryptoSignature_init(&hSig, hCrypto, NULL, hPubKey,
                                            OS_CryptoSignature_ALG_RSA_PKCS1_V15,
-                                           hash_type)) != SEOS_SUCCESS)
+                                           hash_type)) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoSignature_init() failed with %d", err);
             goto err0;
@@ -562,7 +562,7 @@ trentos_ssl_cli_verify_signature(
     }
 
     if ((err = OS_CryptoSignature_verify(hSig, hash, hash_len, sig,
-                                         sig_len)) != SEOS_SUCCESS)
+                                         sig_len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoSignature_verify() failed with %d", err);
         goto err1;
@@ -572,12 +572,12 @@ trentos_ssl_cli_verify_signature(
     ret = 0;
 
 err1:
-    if ((err = OS_CryptoSignature_free(hSig)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoSignature_free(hSig)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoSignature_init() failed with %d", err);
     }
 err0:
-    if ((err = OS_CryptoKey_free(hPubKey)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_free(hPubKey)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
     }

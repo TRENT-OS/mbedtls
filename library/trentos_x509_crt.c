@@ -48,7 +48,7 @@ hash_cert(
     }
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    if ((err = OS_CryptoDigest_init(&hDigest, hCrypto, hash_alg)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoDigest_init(&hDigest, hCrypto, hash_alg)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
         goto err0;
@@ -63,7 +63,7 @@ hash_cert(
     while (cert_left > 0)
     {
         if ((err = OS_CryptoDigest_process(hDigest, cert + cert_offs,
-                                           next_len)) != SEOS_SUCCESS)
+                                           next_len)) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoDigest_process() failed with %d", err);
             goto err1;
@@ -75,7 +75,7 @@ hash_cert(
     }
 
     if ((err = OS_CryptoDigest_finalize(hDigest, hash,
-                                        hash_len)) != SEOS_SUCCESS)
+                                        hash_len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_finalize() failed with %d", err);
         goto err1;
@@ -85,7 +85,7 @@ hash_cert(
     ret = 0;
 
 err1:
-    if ((err = OS_CryptoDigest_free(hDigest)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoDigest_free(hDigest)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_free() failed with %d", err);
     }

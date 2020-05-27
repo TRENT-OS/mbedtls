@@ -53,25 +53,25 @@ trentos_ssl_tls_tls_prf(
      * Compute P_<hash>(secret, label + random)[0..dlen]
      */
     if ((err = OS_CryptoMac_init(&hMac, ssl->hCrypto,
-                                 OS_CryptoMac_ALG_HMAC_SHA256)) != SEOS_SUCCESS)
+                                 OS_CryptoMac_ALG_HMAC_SHA256)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
     len = sizeof(tmp);
-    if ((err = OS_CryptoMac_start(hMac, secret, slen)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoMac_start(hMac, secret, slen)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
     if ((err = OS_CryptoMac_process(hMac, tmp + md_len,
-                                    nb )) != SEOS_SUCCESS)
+                                    nb )) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
-    if ((err = OS_CryptoMac_finalize(hMac, tmp, &len )) != SEOS_SUCCESS)
+    if ((err = OS_CryptoMac_finalize(hMac, tmp, &len )) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
@@ -79,34 +79,34 @@ trentos_ssl_tls_tls_prf(
 
     for ( i = 0; i < dlen; i += md_len )
     {
-        if ((err = OS_CryptoMac_start(hMac, secret, slen)) != SEOS_SUCCESS)
+        if ((err = OS_CryptoMac_start(hMac, secret, slen)) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoMac_start() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
         if ((err = OS_CryptoMac_process(hMac, tmp,
-                                        md_len + nb )) != SEOS_SUCCESS)
+                                        md_len + nb )) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoMac_process() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
-        if ((err = OS_CryptoMac_finalize(hMac, h_i, &len )) != SEOS_SUCCESS)
+        if ((err = OS_CryptoMac_finalize(hMac, h_i, &len )) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoMac_finalize() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
 
-        if ((err = OS_CryptoMac_start(hMac, secret, slen)) != SEOS_SUCCESS)
+        if ((err = OS_CryptoMac_start(hMac, secret, slen)) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
-        if ((err = OS_CryptoMac_process(hMac, tmp, md_len )) != SEOS_SUCCESS)
+        if ((err = OS_CryptoMac_process(hMac, tmp, md_len )) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoMac_process() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
-        if ((err = OS_CryptoMac_finalize(hMac, tmp, &len )) != SEOS_SUCCESS)
+        if ((err = OS_CryptoMac_finalize(hMac, tmp, &len )) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoMac_finalize() failed with %d", err);
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
@@ -138,7 +138,7 @@ trentos_ssl_tls_calc_verify(
     OS_CryptoDigest_Handle_t hDigest;
 
     if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
-                                    OS_CryptoDigest_ALG_SHA256)) != SEOS_SUCCESS)
+                                    OS_CryptoDigest_ALG_SHA256)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
         return;
@@ -147,13 +147,13 @@ trentos_ssl_tls_calc_verify(
     Debug_LOG_DEBUG("=> calc verify sha256");
 
     if ((err = OS_CryptoDigest_clone(hDigest,
-                                     ssl->handshake->hSessHash)) != SEOS_SUCCESS)
+                                     ssl->handshake->hSessHash)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_clone() failed with %d", err);
         goto out;
     }
     if ((err = OS_CryptoDigest_finalize(hDigest, hash,
-                                        &len)) != SEOS_SUCCESS)
+                                        &len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_finalize() failed with %d", err);
         goto out;
@@ -165,7 +165,7 @@ trentos_ssl_tls_calc_verify(
     Debug_LOG_DEBUG("<= calc verify");
 
 out:
-    if ((err = OS_CryptoDigest_free(hDigest)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoDigest_free(hDigest)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_free() failed with %d", err);
     }
@@ -179,7 +179,7 @@ trentos_ssl_tls_update_checksum(
 {
     OS_Error_t err;
     if ((err = OS_CryptoDigest_process(ssl->handshake->hSessHash,
-                                       buf, len)) != SEOS_SUCCESS)
+                                       buf, len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_process() failed with %d", err);
     }
@@ -205,7 +205,7 @@ trentos_ssl_tls_calc_finished(
     }
 
     if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
-                                    OS_CryptoDigest_ALG_SHA256)) != SEOS_SUCCESS)
+                                    OS_CryptoDigest_ALG_SHA256)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
         return;
@@ -214,7 +214,7 @@ trentos_ssl_tls_calc_finished(
     Debug_LOG_DEBUG("=> calc finished tls sha256");
 
     if ((err = OS_CryptoDigest_clone(hDigest,
-                                     ssl->handshake->hSessHash)) != SEOS_SUCCESS)
+                                     ssl->handshake->hSessHash)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_clone() failed with %d", err);
         goto out;
@@ -225,7 +225,7 @@ trentos_ssl_tls_calc_finished(
              : "server finished";
 
     if ((err = OS_CryptoDigest_finalize(hDigest, padbuf,
-                                        &hashLen)) != SEOS_SUCCESS)
+                                        &hashLen)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_finalize() failed with %d", err);
         goto out;
@@ -238,7 +238,7 @@ trentos_ssl_tls_calc_finished(
     Debug_DUMP_DEBUG(buf, len);
 
 out:
-    if ((err = OS_CryptoDigest_free(hDigest)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoDigest_free(hDigest)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_free() failed with %d", err);
     }
@@ -270,7 +270,7 @@ auth_encrypt(
 
     if ((err = OS_CryptoCipher_init(&hCipher, hCrypto, hEncKey,
                                     OS_CryptoCipher_ALG_AES_GCM_ENC,
-                                    iv, iv_len)) != SEOS_SUCCESS)
+                                    iv, iv_len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_init() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
@@ -278,21 +278,21 @@ auth_encrypt(
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
     if ((err = OS_CryptoCipher_start(hCipher, ad,
-                                     ad_len)) != SEOS_SUCCESS)
+                                     ad_len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_start() failed with %d", err);
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_process(hCipher, input, ilen, output,
-                                       olen)) != SEOS_SUCCESS)
+                                       olen)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_process() failed with %d", err);
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_finalize(hCipher, tag,
-                                        &tlen)) != SEOS_SUCCESS)
+                                        &tlen)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_finalize() failed with %d", err);
         goto err0;
@@ -301,7 +301,7 @@ auth_encrypt(
     ret = 0;
 
 err0:
-    if ((err = OS_CryptoCipher_free(hCipher)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoCipher_free(hCipher)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_free() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
@@ -332,28 +332,28 @@ auth_decrypt(
 
     if ((err = OS_CryptoCipher_init(&hCipher, hCrypto, hDecKey,
                                     OS_CryptoCipher_ALG_AES_GCM_DEC,
-                                    iv, iv_len)) != SEOS_SUCCESS)
+                                    iv, iv_len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_init() failed with %d", err );
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-    if ((err = OS_CryptoCipher_start(hCipher, ad, ad_len)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoCipher_start(hCipher, ad, ad_len)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_start() failed with %d", err );
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_process(hCipher, input, ilen, output,
-                                       olen)) != SEOS_SUCCESS)
+                                       olen)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_process() failed with %d", err );
         goto err0;
     }
 
     if ((err = OS_CryptoCipher_finalize(hCipher, tag,
-                                        &tlen)) != SEOS_SUCCESS)
+                                        &tlen)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_finalize() failed with %d", err );
         goto err0;
@@ -362,7 +362,7 @@ auth_decrypt(
     ret = 0;
 
 err0:
-    if ((err = OS_CryptoCipher_free(hCipher)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoCipher_free(hCipher)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoCipher_free() failed with %d", err );
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
@@ -390,7 +390,7 @@ trentos_ssl_tls_import_aes_keys(
     };
 
     memcpy(keyData.data.aes.bytes, enc_bytes, key_len);
-    if ((err = OS_CryptoKey_import(hEncKey, hCrypto, &keyData)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_import(hEncKey, hCrypto, &keyData)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err );
         return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
@@ -399,7 +399,7 @@ trentos_ssl_tls_import_aes_keys(
     ret = MBEDTLS_ERR_SSL_INTERNAL_ERROR;
 
     memcpy(keyData.data.aes.bytes, dec_bytes, key_len);
-    if ((err = OS_CryptoKey_import(hDecKey, hCrypto, &keyData)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_import(hDecKey, hCrypto, &keyData)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
         goto err0;
@@ -408,7 +408,7 @@ trentos_ssl_tls_import_aes_keys(
     return 0;
 
 err0:
-    if ((err = OS_CryptoKey_free(*hEncKey)) != SEOS_SUCCESS)
+    if ((err = OS_CryptoKey_free(*hEncKey)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err );
     }
