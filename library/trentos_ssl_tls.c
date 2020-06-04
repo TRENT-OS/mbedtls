@@ -78,12 +78,12 @@ trentos_ssl_tls_tls_prf(
     if ((err = OS_CryptoMac_process(hMac, tmp + md_len,
                                     nb )) != OS_SUCCESS)
     {
-        Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
+        Debug_LOG_ERROR("OS_CryptoMac_process() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
     if ((err = OS_CryptoMac_finalize(hMac, tmp, &len )) != OS_SUCCESS)
     {
-        Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
+        Debug_LOG_ERROR("OS_CryptoMac_finalize() failed with %d", err);
         return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
     }
 
