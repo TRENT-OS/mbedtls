@@ -37,6 +37,12 @@ trentos_ssl_tls_tls_prf(
     unsigned char h_i[MBEDTLS_MD_MAX_SIZE];
     OS_Error_t err;
     OS_CryptoMac_Handle_t hMac;
+    OS_CryptoKey_Handle_t hKey;
+    OS_CryptoKey_Data_t macKey =
+    {
+        .type = OS_CryptoKey_TYPE_MAC,
+        .attribs.exportable = true
+    };
 
     md_len = OS_CryptoMac_SIZE_HMAC_SHA256;
     if ( sizeof( tmp ) < md_len + strlen( label ) + rlen )
@@ -49,10 +55,19 @@ trentos_ssl_tls_tls_prf(
     memcpy( tmp + md_len + nb, random, rlen );
     nb += rlen;
 
+    // Create MAC key
+    memcpy(macKey.data.mac.bytes, secret, slen);
+    macKey.data.mac.len = slen;
+    if ((err = OS_CryptoKey_import(&hKey, ssl->hCrypto, &macKey)) != OS_SUCCESS)
+    {
+        Debug_LOG_ERROR("OS_CryptoKey_import() failed with %d", err);
+        return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
+    }
+
     /*
      * Compute P_<hash>(secret, label + random)[0..dlen]
      */
-    if ((err = OS_CryptoMac_init(&hMac, ssl->hCrypto,
+    if ((err = OS_CryptoMac_init(&hMac, ssl->hCrypto, hKey,
                                  OS_CryptoMac_ALG_HMAC_SHA256)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
@@ -60,11 +75,6 @@ trentos_ssl_tls_tls_prf(
     }
 
     len = sizeof(tmp);
-    if ((err = OS_CryptoMac_start(hMac, secret, slen)) != OS_SUCCESS)
-    {
-        Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
-        return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
-    }
     if ((err = OS_CryptoMac_process(hMac, tmp + md_len,
                                     nb )) != OS_SUCCESS)
     {
@@ -79,11 +89,6 @@ trentos_ssl_tls_tls_prf(
 
     for ( i = 0; i < dlen; i += md_len )
     {
-        if ((err = OS_CryptoMac_start(hMac, secret, slen)) != OS_SUCCESS)
-        {
-            Debug_LOG_ERROR("OS_CryptoMac_start() failed with %d", err);
-            return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
-        }
         if ((err = OS_CryptoMac_process(hMac, tmp,
                                         md_len + nb )) != OS_SUCCESS)
         {
@@ -96,11 +101,6 @@ trentos_ssl_tls_tls_prf(
             return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
         }
 
-        if ((err = OS_CryptoMac_start(hMac, secret, slen)) != OS_SUCCESS)
-        {
-            Debug_LOG_ERROR("OS_CryptoMac_init() failed with %d", err);
-            return ( MBEDTLS_ERR_SSL_INTERNAL_ERROR );
-        }
         if ((err = OS_CryptoMac_process(hMac, tmp, md_len )) != OS_SUCCESS)
         {
             Debug_LOG_ERROR("OS_CryptoMac_process() failed with %d", err);
@@ -124,6 +124,7 @@ trentos_ssl_tls_tls_prf(
     mbedtls_platform_zeroize( h_i, sizeof( h_i ) );
 
     OS_CryptoMac_free(hMac);
+    OS_CryptoKey_free(hKey);
 
     return ( 0 );
 }
