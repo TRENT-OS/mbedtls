@@ -137,20 +137,13 @@ trentos_ssl_tls_calc_verify(
     OS_Error_t err;
     OS_CryptoDigest_Handle_t hDigest;
 
-    if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
-                                    OS_CryptoDigest_ALG_SHA256)) != OS_SUCCESS)
-    {
-        Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
-        return;
-    }
-
     Debug_LOG_DEBUG("=> calc verify sha256");
 
-    if ((err = OS_CryptoDigest_clone(hDigest,
+    if ((err = OS_CryptoDigest_clone(&hDigest, ssl->hCrypto,
                                      ssl->handshake->hSessHash)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_clone() failed with %d", err);
-        goto out;
+        return;
     }
     if ((err = OS_CryptoDigest_finalize(hDigest, hash,
                                         &len)) != OS_SUCCESS)
@@ -204,20 +197,13 @@ trentos_ssl_tls_calc_finished(
         session = ssl->session;
     }
 
-    if ((err = OS_CryptoDigest_init(&hDigest, ssl->hCrypto,
-                                    OS_CryptoDigest_ALG_SHA256)) != OS_SUCCESS)
-    {
-        Debug_LOG_ERROR("OS_CryptoDigest_init() failed with %d", err);
-        return;
-    }
-
     Debug_LOG_DEBUG("=> calc finished tls sha256");
 
-    if ((err = OS_CryptoDigest_clone(hDigest,
+    if ((err = OS_CryptoDigest_clone(&hDigest, ssl->hCrypto,
                                      ssl->handshake->hSessHash)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("OS_CryptoDigest_clone() failed with %d", err);
-        goto out;
+        return;
     }
 
     sender = ( from == MBEDTLS_SSL_IS_CLIENT )
