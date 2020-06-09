@@ -58,8 +58,8 @@ hash_cert(
     // current limitation of the crypto api...
     cert_offs = 0;
     cert_left = cert_len;
-    next_len  = cert_left > OS_Crypto_SIZE_DATAPORT ?
-                OS_Crypto_SIZE_DATAPORT : cert_left;
+    next_len  = cert_left > OS_DATAPORT_DEFAULT_SIZE ? OS_DATAPORT_DEFAULT_SIZE :
+                cert_left;
     while (cert_left > 0)
     {
         if ((err = OS_CryptoDigest_process(hDigest, cert + cert_offs,
@@ -70,8 +70,8 @@ hash_cert(
         }
         cert_left -= next_len;
         cert_offs += next_len;
-        next_len   = cert_left > OS_Crypto_SIZE_DATAPORT ?
-                     OS_Crypto_SIZE_DATAPORT : cert_left;
+        next_len   = cert_left > OS_DATAPORT_DEFAULT_SIZE ? OS_DATAPORT_DEFAULT_SIZE :
+                     cert_left;
     }
 
     if ((err = OS_CryptoDigest_finalize(hDigest, hash,
