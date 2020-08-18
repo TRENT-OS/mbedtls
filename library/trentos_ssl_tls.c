@@ -42,7 +42,7 @@ trentos_ssl_tls_tls_prf(
     OS_CryptoKey_Data_t macKey =
     {
         .type = OS_CryptoKey_TYPE_MAC,
-        .attribs.exportable = true
+        .attribs.keepLocal = true
     };
 
     md_len = OS_CryptoMac_SIZE_HMAC_SHA256;
@@ -386,7 +386,7 @@ trentos_ssl_tls_import_aes_keys(
     OS_CryptoKey_Data_t keyData =
     {
         .type               = OS_CryptoKey_TYPE_AES,
-        .attribs.exportable = false,
+        .attribs.keepLocal  = false,
         .data.aes.len       = key_len,
     };
 

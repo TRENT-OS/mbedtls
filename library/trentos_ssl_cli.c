@@ -121,7 +121,7 @@ trentos_ssl_cli_parse_server_ecdh_params(
     OS_CryptoKey_Data_t keyData =
     {
         .type = OS_CryptoKey_TYPE_SECP256R1_PUB,
-        .attribs.exportable = true
+        .attribs.keepLocal = true
     };
     OS_CryptoKey_Secp256r1Pub_t* ecPub = &keyData.data.secp256r1.pub;
 
@@ -281,7 +281,7 @@ trentos_ssl_cli_exchange_key(
     } key;
 
     // Set up the key generation spec for our private key
-    key.spec.key.attribs.exportable = true;
+    key.spec.key.attribs.keepLocal = true;
     if (MBEDTLS_KEY_EXCHANGE_DHE_RSA == ex_type)
     {
         // Extract public server params (P,G) from public key into generator spec
@@ -413,7 +413,7 @@ trentos_ssl_cli_parse_server_dh_params(
     OS_CryptoKey_Data_t keyData =
     {
         .type = OS_CryptoKey_TYPE_DH_PUB,
-        .attribs.exportable = true
+        .attribs.keepLocal = true
     };
     OS_CryptoKey_DhPub_t* dhPub = &keyData.data.dh.pub;
 
@@ -476,7 +476,7 @@ trentos_ssl_cli_export_cert_key(
 
     memset(keyData, 0, sizeof(OS_CryptoKey_Data_t));
 
-    keyData->attribs.exportable = true;
+    keyData->attribs.keepLocal = true;
     switch (sig_alg)
     {
     case MBEDTLS_PK_RSA:
