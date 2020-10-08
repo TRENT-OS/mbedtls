@@ -38,8 +38,14 @@
  * - \c 32 if \c MBEDTLS_ENTROPY_FORCE_SHA256 is enabled at compile time.
  */
 /*
- *  Copyright (C) 2006-2019, Arm Limited (or its affiliates), All Rights Reserved
- *  SPDX-License-Identifier: Apache-2.0
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+ *
+ *  This file is provided under the Apache License 2.0, or the
+ *  GNU General Public License v2.0 or later.
+ *
+ *  **********
+ *  Apache License 2.0:
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -53,7 +59,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  This file is part of Mbed TLS (https://tls.mbed.org)
+ *  **********
+ *
+ *  **********
+ *  GNU General Public License v2.0 or later:
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ *  **********
  */
 
 #ifndef MBEDTLS_CTR_DRBG_H
@@ -214,11 +239,8 @@ void mbedtls_ctr_drbg_init( mbedtls_ctr_drbg_context *ctx );
  *   with mbedtls_entropy_init() (which registers the platform's default
  *   entropy sources).
  *
- * \p f_entropy is always called with a buffer size equal to the entropy
- * length. The entropy length is initially #MBEDTLS_CTR_DRBG_ENTROPY_LEN
- * and this value is always used for the initial seeding. You can change
- * the entropy length for subsequent seeding by calling
- * mbedtls_ctr_drbg_set_entropy_len() after this function.
+ * The entropy length is #MBEDTLS_CTR_DRBG_ENTROPY_LEN by default.
+ * You can override it by calling mbedtls_ctr_drbg_set_entropy_len().
  *
  * You can provide a personalization string in addition to the
  * entropy source, to make this instantiation as unique as possible.
@@ -252,9 +274,18 @@ void mbedtls_ctr_drbg_init( mbedtls_ctr_drbg_context *ctx );
 #endif
 /**
  * \param ctx           The CTR_DRBG context to seed.
+ *                      It must have been initialized with
+ *                      mbedtls_ctr_drbg_init().
+ *                      After a successful call to mbedtls_ctr_drbg_seed(),
+ *                      you may not call mbedtls_ctr_drbg_seed() again on
+ *                      the same context unless you call
+ *                      mbedtls_ctr_drbg_free() and mbedtls_ctr_drbg_init()
+ *                      again first.
  * \param f_entropy     The entropy callback, taking as arguments the
  *                      \p p_entropy context, the buffer to fill, and the
  *                      length of the buffer.
+ *                      \p f_entropy is always called with a buffer size
+ *                      equal to the entropy length.
  * \param p_entropy     The entropy context to pass to \p f_entropy.
  * \param custom        The personalization string.
  *                      This can be \c NULL, in which case the personalization
@@ -298,14 +329,9 @@ void mbedtls_ctr_drbg_set_prediction_resistance( mbedtls_ctr_drbg_context *ctx,
 
 /**
  * \brief               This function sets the amount of entropy grabbed on each
- *                      subsequent reseed.
+ *                      seed or reseed.
  *
  * The default value is #MBEDTLS_CTR_DRBG_ENTROPY_LEN.
- *
- * \note                mbedtls_ctr_drbg_seed() always sets the entropy length
- *                      to #MBEDTLS_CTR_DRBG_ENTROPY_LEN, so this function
- *                      only has an effect when it is called after
- *                      mbedtls_ctr_drbg_seed().
  *
  * \note                The security strength of CTR_DRBG is bounded by the
  *                      entropy length. Thus:

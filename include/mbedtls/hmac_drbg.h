@@ -8,8 +8,14 @@
  * Deterministic Random Bit Generators</em>.
  */
 /*
- *  Copyright (C) 2006-2019, ARM Limited, All Rights Reserved
- *  SPDX-License-Identifier: Apache-2.0
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+ *
+ *  This file is provided under the Apache License 2.0, or the
+ *  GNU General Public License v2.0 or later.
+ *
+ *  **********
+ *  Apache License 2.0:
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -23,7 +29,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  This file is part of mbed TLS (https://tls.mbed.org)
+ *  **********
+ *
+ *  **********
+ *  GNU General Public License v2.0 or later:
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ *  **********
  */
 #ifndef MBEDTLS_HMAC_DRBG_H
 #define MBEDTLS_HMAC_DRBG_H
@@ -139,13 +164,11 @@ void mbedtls_hmac_drbg_init( mbedtls_hmac_drbg_context *ctx );
  *                      Note that SHA-256 is just as efficient as SHA-224.
  *                      The security strength can be reduced if a smaller
  *                      entropy length is set with
- *                      mbedtls_hmac_drbg_set_entropy_len() afterwards.
+ *                      mbedtls_hmac_drbg_set_entropy_len().
  *
- * \note                The entropy length for the initial seeding is
- *                      the security strength (converted from bits to bytes).
- *                      You can set a different entropy length for subsequent
- *                      seeding by calling mbedtls_hmac_drbg_set_entropy_len()
- *                      after this function.
+ * \note                The default entropy length is the security strength
+ *                      (converted from bits to bytes). You can override
+ *                      it by calling mbedtls_hmac_drbg_set_entropy_len().
  *
  * \note                During the initial seeding, this function calls
  *                      the entropy source to obtain a nonce
@@ -224,14 +247,9 @@ void mbedtls_hmac_drbg_set_prediction_resistance( mbedtls_hmac_drbg_context *ctx
 
 /**
  * \brief               This function sets the amount of entropy grabbed on each
- *                      reseed.
+ *                      seed or reseed.
  *
- * The default value is set by mbedtls_hmac_drbg_seed().
- *
- * \note                mbedtls_hmac_drbg_seed() always sets the entropy length
- *                      to the default value based on the chosen MD algorithm,
- *                      so this function only has an effect if it is called
- *                      after mbedtls_hmac_drbg_seed().
+ * See the documentation of mbedtls_hmac_drbg_seed() for the default value.
  *
  * \param ctx           The HMAC_DRBG context.
  * \param len           The amount of entropy to grab, in bytes.
