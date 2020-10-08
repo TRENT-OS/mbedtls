@@ -1482,6 +1482,7 @@ static void ssl_mac( mbedtls_md_context_t *md_ctx,
 #define SSL_SOME_MODES_USE_MAC
 #endif
 
+#if !defined(USE_OS_CRYPTO)
 /*
  * Encryption/decryption functions
  */
@@ -1828,6 +1829,7 @@ static int ssl_encrypt_buf( mbedtls_ssl_context *ssl )
 
     return( 0 );
 }
+#endif /* !USE_OS_CRYPTO */
 
 #if defined(MBEDTLS_SSL_SOME_SUITES_USE_TLS_CBC)
 /*
@@ -1979,6 +1981,7 @@ void mbedtls_ssl_cf_memcpy_offset( unsigned char *dst,
 }
 #endif /* MBEDTLS_SSL_SOME_SUITES_USE_TLS_CBC */
 
+#if !defined(USE_OS_CRYPTO)
 static int ssl_decrypt_buf( mbedtls_ssl_context *ssl )
 {
     mbedtls_cipher_mode_t mode;
