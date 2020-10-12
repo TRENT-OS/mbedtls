@@ -128,7 +128,7 @@ static int dhm_read_bignum( mbedtls_mpi *X,
  *  http://www.cl.cam.ac.uk/~rja14/Papers/psandqs.pdf
  *  http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2005-2643
  */
-static int dhm_check_range( const mbedtls_mpi *param, const mbedtls_mpi *P )
+int dhm_check_range( const mbedtls_mpi *param, const mbedtls_mpi *P )
 {
     mbedtls_mpi L, U;
     int ret = 0;

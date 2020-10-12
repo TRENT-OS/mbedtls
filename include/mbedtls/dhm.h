@@ -322,6 +322,16 @@ int mbedtls_dhm_calc_secret( mbedtls_dhm_context *ctx,
  */
 void mbedtls_dhm_free( mbedtls_dhm_context *ctx );
 
+
+/**
+ * \brief          Check that param is in 2 < param < P - 2
+ *
+ * \param param    Param to check
+ * \param P        DHM prime
+ */
+int dhm_check_range( const mbedtls_mpi *param, const mbedtls_mpi *P );
+
+
 #if defined(MBEDTLS_ASN1_PARSE_C)
 /** \ingroup x509_module */
 /**
