@@ -163,7 +163,7 @@ trentos_ssl_cli_parse_server_ecdh_params(
     }
 
     if (read_curve_point(p, end, ssl->handshake->ecdh.primeLen, ecPub->qxBytes,
-                         &ecPub->qxLen, ecPub->qyBytes, &ecPub->qyLen))
+                         (size_t *)&ecPub->qxLen, ecPub->qyBytes, (size_t *)&ecPub->qyLen))
     {
         Debug_LOG_ERROR("Could not parse server ECDH point param");
         return MBEDTLS_ERR_DHM_BAD_INPUT_DATA;
