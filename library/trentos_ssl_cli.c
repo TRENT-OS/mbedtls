@@ -12,7 +12,7 @@
 
 #include "OS_Crypto.h"
 
-#include "LibDebug/Debug.h"
+#include "lib_debug/Debug.h"
 
 #include "mbedtls/ssl.h"
 #include "mbedtls/ssl_internal.h"
