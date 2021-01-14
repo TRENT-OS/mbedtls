@@ -6178,11 +6178,11 @@ void mbedtls_ssl_optimize_checksum( mbedtls_ssl_context *ssl,
     else
 #endif
 #endif /* MBEDTLS_SSL_PROTO_TLS1_2 */
-#endif /* USE_OS_CRYPTO */
     {
         MBEDTLS_SSL_DEBUG_MSG( 1, ( "should never happen" ) );
         return;
     }
+#endif /* USE_OS_CRYPTO */
 }
 
 void mbedtls_ssl_reset_checksum( mbedtls_ssl_context *ssl )
