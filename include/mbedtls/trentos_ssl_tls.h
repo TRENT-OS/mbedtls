@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019, Hensoldt Cyber GmbH
+ * Copyright (C) 2020, HENSOLDT Cyber GmbH
  */
 
 #ifndef MBEDTLS_TRENTOS_SSL_TLS_H

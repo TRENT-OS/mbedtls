@@ -1,4 +1,8 @@
 #
+# Copyright (C) 2020, HENSOLDT Cyber GmbH
+#
+
+#
 # mbedTLS library used for various parts of TRENTOS-M
 #
 # We have these build targets:

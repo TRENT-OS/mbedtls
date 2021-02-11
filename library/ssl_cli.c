@@ -1,4 +1,9 @@
 /*
+ * Copyright (C) 2019-2020, HENSOLDT Cyber GmbH
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
  *  SSLv3/TLSv1 client-side functions
  *
  *  Copyright The Mbed TLS Contributors

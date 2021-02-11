@@ -1,5 +1,6 @@
-/**
- * Copyright (C) 2019-2020, Hensoldt Cyber GmbH
+/*
+ * Copyright (C) 2020, HENSOLDT Cyber GmbH
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef MBEDTLS_CONFIG_H

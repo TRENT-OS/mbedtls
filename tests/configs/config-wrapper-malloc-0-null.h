@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2020, HENSOLDT Cyber GmbH
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 /* config.h wrapper that forces calloc(0) to return NULL.
  * Used for testing.
  */

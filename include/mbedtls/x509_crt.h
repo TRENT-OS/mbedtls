@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2019-2020, HENSOLDT Cyber GmbH
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 /**
  * \file x509_crt.h
  *
