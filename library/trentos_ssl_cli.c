@@ -304,6 +304,13 @@ trentos_ssl_cli_exchange_key(
         key.spec.key.type = OS_CryptoKey_TYPE_SECP256R1_PRV;
         algEx             = OS_CryptoAgreement_ALG_ECDH;
     }
+    else
+    {
+        Debug_LOG_ERROR(
+            "Given key exchange type (%i) is not supported.",
+            ex_type);
+        return MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
+    }
 
     // Generate private key and make public key from it
     if ((err = OS_CryptoKey_generate(&hPrvKey, ssl->hCrypto,
