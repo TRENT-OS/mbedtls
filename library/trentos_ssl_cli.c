@@ -54,9 +54,9 @@ read_curve_point(
     unsigned char*  end,
     size_t          pLen,
     void*           xBytes,
-    size_t*         xLen,
+    uint32_t*       xLen,
     void*           yBytes,
-    size_t*         yLen)
+    uint32_t*       yLen)
 {
     size_t n;
     int ret;
