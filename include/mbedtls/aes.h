@@ -113,7 +113,7 @@ typedef struct mbedtls_aes_context
 {
     int nr;                     /*!< The number of rounds. */
     uint32_t *rk;               /*!< AES round keys. */
-    uint32_t buf[68];           /*!< Unaligned data buffer. This buffer can
+    uint32_t buf[120];          /*!< Unaligned data buffer. This buffer can
                                      hold 32 extra Bytes, which can be used for
                                      one of the following purposes:
                                      <ul><li>Alignment if VIA padlock is
