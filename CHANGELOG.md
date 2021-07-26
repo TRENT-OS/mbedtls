@@ -6,6 +6,12 @@ the TRENTOS-M SDK will be documented in this file.
 For more details it is recommended to compare the module at hand with the
 previous release or the baseline of the 3rd party module.
 
+## [1.3]
+
+### Changed
+
+- Cosmetic update of comments and whitespace.
+
 ## [1.2]
 
 ### Fixed
