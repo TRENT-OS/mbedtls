@@ -42,8 +42,9 @@ set(SOURCES_CRYPTO
     "${CMAKE_CURRENT_SOURCE_DIR}/library/asn1parse.c"
 )
 
-# Sources for TLS builds (note that only here we include the crypto.c, which is
-# where we implement all the crypto logic which uses OS_Crypto!)
+# Sources for TLS builds
+# NOTE: For TLS builds the files 'trentos_*.c' are included. These files
+# implement all crypto logic using OS_Crypto.
 set(SOURCES_TLS
     "${CMAKE_CURRENT_SOURCE_DIR}/library/error.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/platform.c"
