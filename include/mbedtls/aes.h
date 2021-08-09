@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2021, HENSOLDT Cyber GmbH
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 /**
  * \file aes.h
  *

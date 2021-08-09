@@ -1,4 +1,9 @@
 /*
+ * Copyright (C) 2021, HENSOLDT Cyber GmbH
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
  *  NIST SP800-38D compliant GCM implementation
  *
  *  Copyright The Mbed TLS Contributors
