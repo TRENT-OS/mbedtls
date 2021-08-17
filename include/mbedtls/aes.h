@@ -118,6 +118,11 @@ typedef struct mbedtls_aes_context
 {
     int nr;                     /*!< The number of rounds. */
     uint32_t *rk;               /*!< AES round keys. */
+
+    // WARNING: The size of 'buf' has been increased from 68 bytes to 120 bytes
+    //          to be large enough for the custom AES-CTR implementation in
+    //          'OS_Crypto/CryptoLibAes.c' that requires a size of at least
+    //          'FS_AES256_RK_INT_SIZE'!
     uint32_t buf[120];          /*!< Unaligned data buffer. This buffer can
                                      hold 32 extra Bytes, which can be used for
                                      one of the following purposes:
