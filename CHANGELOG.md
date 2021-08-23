@@ -8,9 +8,27 @@ previous release or the baseline of the 3rd party module.
 
 ## [1.3]
 
+### Fixed
+
+- Ensure that calculated index `hi` in `gcm_mult()` of `gcm.c` is always between
+  0 and 15 to eliminate out-of-bounds errors.
+- Adjust data type in the signature of function `read_curve_point()` in
+  `trentos_ssl_cli.c`from `size_t*` to `uint32_t*` because function is only used
+  for those data type.
+- Add return in function `trentos_ssl_cli_exchange_key()` of `trentos_ssl_cli.c`
+  if `ex_type` is not supported in order to avoid program flows that use
+  variable `algEx` without being initialized.
+
 ### Changed
 
-- Cosmetic update of comments and whitespace.
+- Increase size of buffer `buf` of structure `mbedtls_aes_context` in `aes.h` to
+  120 so that the expanded round key of the custom fixed slice implementation of
+  AES256 fits in.
+- Cosmetic update of comments and whitespace in some files.
+
+### Added
+
+- Update mbedTLS by merging version v2.16.11, tag mbedtls-2.16.11.
 
 ## [1.2]
 
