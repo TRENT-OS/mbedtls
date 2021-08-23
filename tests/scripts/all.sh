@@ -1,10 +1,5 @@
 #! /usr/bin/env sh
 
-#
-# Copyright (C) 2020, HENSOLDT Cyber GmbH
-# SPDX-License-Identifier: Apache-2.0
-#
-
 # all.sh
 #
 # Copyright The Mbed TLS Contributors
