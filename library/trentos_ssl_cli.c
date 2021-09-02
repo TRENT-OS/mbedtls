@@ -493,7 +493,7 @@ trentos_ssl_cli_export_cert_key(
         // Make sure we can actually handle the key
         if (rsa_ctx->len > OS_CryptoKey_SIZE_RSA_MAX)
         {
-            Debug_LOG_ERROR("RSA key size not supported: %i", rsa_ctx->len);
+            Debug_LOG_ERROR("RSA key size not supported: %zu", rsa_ctx->len);
             return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
         }
         // Transform the public key into a OS_CryptoKey_Data_t so we can use it
