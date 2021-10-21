@@ -6,6 +6,18 @@ the TRENTOS SDK will be documented in this file.
 For more details it is recommended to compare the 3rd party module at hand with
 the previous versions of the TRENTOS SDK or the baseline version.
 
+## [1.4]
+
+### Changed
+
+- Rename CMake build target for the TLS client library:
+  3rdparty_mbedtls_for_tls_client
+
+### Added
+
+- Add CMake build target for a TLS server library:
+  3rdparty_mbedtls_for_tls_server
+
 ## [1.3]
 
 ### Fixed
