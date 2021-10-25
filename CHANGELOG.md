@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes by HENSOLDT Cyber GmbH to this 3rd party module included in
-the TRENTOS-M SDK will be documented in this file.
+the TRENTOS SDK will be documented in this file.
 
 For more details it is recommended to compare the module at hand with the
 previous release or the baseline of the 3rd party module.
@@ -42,7 +42,7 @@ output.
 ### Changed
 
 - Expose `dhm_check_range()` as part of a public interface.
-- Align with changes in the TRENTOS-M Crypto API by renaming key attribute from
+- Align with changes in the TRENTOS Crypto API by renaming key attribute from
 `exportable` to `keepLocal`.
 
 ### Added
@@ -55,7 +55,7 @@ output.
 
 - Use the generic dataport default size `OS_DATAPORT_DEFAULT_SIZE`.
 - Adapt the `OS_CryptoMac_init()` function call to receive a MAC key object to
-conform to the changes in the TRENTOS-M Crypto API.
+conform to the changes in the TRENTOS Crypto API.
 - Add the responsibility of allocating the digest object to the
 `OS_CryptoDigest_clone()` function instead of always calling
 `OS_CryptoDigest_init()` first.
@@ -67,8 +67,8 @@ conform to the changes in the TRENTOS-M Crypto API.
 - Set keyData structure to zero before exporting it in
 `trentos_ssl_cli_export_cert_key()`.
 - Expose `x509_name_cmp()` as a public function.
-- Replace TRENTOS-M specific implementation in `crypto.h/.c` with separate files
-based on functionality and replace mbedTLS log functions with TRENTOS-M log
+- Replace TRENTOS specific implementation in `crypto.h/.c` with separate files
+based on functionality and replace mbedTLS log functions with TRENTOS log
 functions in newly created files:
   - `trentos_ssl_cli.h/.c`,
   - `trentos_ssl_tls.h/.c`,
@@ -90,7 +90,7 @@ context where possible.
 
 ### Added
 
-- Add TRENTOS-M specific configuration file `configs/config-trentos-m.h`.
+- Add TRENTOS specific configuration file `configs/config-trentos.h`.
 
 ## [0.9]
 
@@ -100,14 +100,14 @@ context where possible.
 
 ### Added
 
-- Adding an option to mbedTLS to use TRENTOS-M Crypto API for:
+- Adding an option to mbedTLS to use TRENTOS Crypto API for:
   - server signatures,
   - RSA certificate verification,
   - ECDH-based key exchanges,
   - DHM-based key exchange,
   - RF and session checksum,
   - AES-GCM encryption.
-- Adding TRENTOS-M specific implementation by adding files `library/crypto.c`
+- Adding TRENTOS specific implementation by adding files `library/crypto.c`
 and `include/mbedtls/crypto.h`.
 - Start integration of mbedTLS based on commit ec904e which is based on version
 2.16.0 from <https://github.com/ARMmbed/mbedtls>.

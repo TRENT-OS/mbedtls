@@ -3,7 +3,7 @@
 #
 
 #
-# mbedTLS library used for various parts of TRENTOS-M
+# mbedTLS library used for various parts of TRENTOS
 #
 # We have these build targets:
 #
@@ -120,7 +120,7 @@ target_compile_options(${PROJECT_NAME}
 
 target_compile_definitions(${PROJECT_NAME}
     INTERFACE
-        MBEDTLS_CONFIG_FILE="${CMAKE_CURRENT_SOURCE_DIR}/configs/config-trentos-m.h"
+        MBEDTLS_CONFIG_FILE="${CMAKE_CURRENT_SOURCE_DIR}/configs/config-trentos.h"
 )
 
 #------------------------------------------------------------------------------
@@ -143,13 +143,13 @@ target_compile_options(${PROJECT_NAME}
     INTERFACE
        ${COMPILE_OPTIONS}
        # We need to use the modified version of mbedTLS functions which delegates
-       # all cryptographic operations to the TRENTOS-M crypto
+       # all cryptographic operations to the TRENTOS crypto
        -DUSE_OS_CRYPTO
 )
 
 target_compile_definitions(${PROJECT_NAME}
     INTERFACE
-        MBEDTLS_CONFIG_FILE="${CMAKE_CURRENT_SOURCE_DIR}/configs/config-trentos-m.h"
+        MBEDTLS_CONFIG_FILE="${CMAKE_CURRENT_SOURCE_DIR}/configs/config-trentos.h"
 )
 
 #------------------------------------------------------------------------------
@@ -172,11 +172,11 @@ target_compile_options(${PROJECT_NAME}
     INTERFACE
        ${COMPILE_OPTIONS}
        # We need to use the modified x509 routines so we can verify certs with
-       # the TRENTOS-M crypto
+       # the TRENTOS crypto
        -DUSE_OS_CRYPTO
 )
 
 target_compile_definitions(${PROJECT_NAME}
     INTERFACE
-        MBEDTLS_CONFIG_FILE="${CMAKE_CURRENT_SOURCE_DIR}/configs/config-trentos-m.h"
+        MBEDTLS_CONFIG_FILE="${CMAKE_CURRENT_SOURCE_DIR}/configs/config-trentos.h"
 )
