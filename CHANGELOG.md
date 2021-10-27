@@ -18,6 +18,7 @@ the previous versions of the TRENTOS SDK or the baseline version.
 - Add return in function `trentos_ssl_cli_exchange_key()` of `trentos_ssl_cli.c`
   if `ex_type` is not supported in order to avoid program flows that use
   variable `algEx` without being initialized.
+- Fix printf format specifier in the `trentos_ssl_cli.c`.
 
 ### Changed
 
