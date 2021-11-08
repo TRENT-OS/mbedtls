@@ -1,10 +1,12 @@
 /*
- * Copyright (C) 2020, HENSOLDT Cyber GmbH
+ * Copyright (C) 2020-2021, HENSOLDT Cyber GmbH
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef MBEDTLS_CONFIG_H
 #define MBEDTLS_CONFIG_H
+
+//------------------------------------------------------------------------------
 
 // So we can get some debug output from the TLS protocol run
 #define MBEDTLS_DEBUG_C
@@ -16,9 +18,8 @@
 #define MBEDTLS_PLATFORM_C
 #define MBEDTLS_PLATFORM_MEMORY
 
-/*
- * These we need for the CRYPTO API
- */
+//------------------------------------------------------------------------------
+
 #define MBEDTLS_MD_C
 #define MBEDTLS_MD5_C
 #define MBEDTLS_SHA256_C
@@ -44,15 +45,7 @@
 
 #define MBEDTLS_DHM_C
 
-/*
- * These we need for the TLS API and CERT PARSER
- */
-#define MBEDTLS_SSL_PROTO_TLS1_2
-#define MBEDTLS_SSL_CLI_C
-#define MBEDTLS_SSL_TLS_C
-
-#define MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED
-#define MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED
+//------------------------------------------------------------------------------
 
 #define MBEDTLS_X509_CRT_PARSE_C
 #define MBEDTLS_PEM_PARSE_C
@@ -62,6 +55,27 @@
 #define MBEDTLS_PK_C
 #define MBEDTLS_ASN1_PARSE_C
 
+//------------------------------------------------------------------------------
+
+// NOTE: TLS functionality requires the corresponding CMake library to define
+// either MBEDTLS_SSL_CLI_C or MBEDTLS_SSL_SRV_C. This allows using the same
+// mbedTLS configuration file for all libraries and will activate the required
+// features below.
+
+#if defined(MBEDTLS_SSL_CLI_C) || defined(MBEDTLS_SSL_SRV_C)
+
+#define MBEDTLS_SSL_PROTO_TLS1_2
+#define MBEDTLS_SSL_TLS_C
+
+#define MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED
+#define MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED
+
+#endif
+
+//------------------------------------------------------------------------------
+
 #include "mbedtls/check_config.h"
+
+//------------------------------------------------------------------------------
 
 #endif /* MBEDTLS_CONFIG_H */
