@@ -182,6 +182,8 @@ target_compile_options(${PROJECT_NAME}
     INTERFACE
        ${COMPILE_OPTIONS}
        -DUSE_OS_CRYPTO # Use modified mbedTLS via OS_Crypto
+       -DMBEDTLS_SSL_CLI_C # Activate TLS client functionality because it is
+                           # required for signature verification.
 )
 
 target_compile_definitions(${PROJECT_NAME}
