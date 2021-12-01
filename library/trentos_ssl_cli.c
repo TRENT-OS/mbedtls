@@ -17,6 +17,7 @@
 #include "mbedtls/ssl.h"
 #include "mbedtls/ssl_internal.h"
 #include "mbedtls/trentos_ssl_cli.h"
+#include "mbedtls/trentos_x509_crt.h"
 
 #include <string.h>
 
@@ -474,55 +475,6 @@ trentos_ssl_cli_parse_server_dh_params(
 }
 
 int
-trentos_ssl_cli_export_cert_key(
-    mbedtls_pk_type_t    sig_alg,
-    void*                pk_ctx,
-    OS_CryptoKey_Data_t* keyData)
-{
-    int ret;
-
-    memset(keyData, 0, sizeof(OS_CryptoKey_Data_t));
-
-    keyData->attribs.keepLocal = true;
-    switch (sig_alg)
-    {
-    case MBEDTLS_PK_RSA:
-    {
-        mbedtls_rsa_context* rsa_ctx = (mbedtls_rsa_context*) pk_ctx;
-        OS_CryptoKey_RsaRub_t* hPubKey = &keyData->data.rsa.pub;
-        // Make sure we can actually handle the key
-        if (rsa_ctx->len > OS_CryptoKey_SIZE_RSA_MAX)
-        {
-            Debug_LOG_ERROR("RSA key size not supported: %zu", rsa_ctx->len);
-            return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-        }
-        // Transform the public key into a OS_CryptoKey_Data_t so we can use it
-        // for our own purposes.
-        keyData->type = OS_CryptoKey_TYPE_RSA_PUB;
-        hPubKey->nLen = rsa_ctx->len;
-        hPubKey->eLen = rsa_ctx->len;
-        if ((ret = mbedtls_rsa_export_raw(pk_ctx,
-                                          hPubKey->nBytes, hPubKey->nLen,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          hPubKey->eBytes, hPubKey->eLen)) != 0)
-        {
-            Debug_LOG_ERROR("mbedtls_rsa_export_raw() failed with %d", ret );
-            return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
-        }
-        break;
-    }
-    default:
-        Debug_LOG_ERROR("Unsupported signature algorithm for cert: %i",
-                        sig_alg);
-        return MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE;
-    }
-
-    return 0;
-}
-
-int
 trentos_ssl_cli_verify_signature(
     OS_Crypto_Handle_t hCrypto,
     void*              pk_ctx,
@@ -539,9 +491,9 @@ trentos_ssl_cli_verify_signature(
     OS_CryptoKey_Handle_t hPubKey;
     OS_CryptoSignature_Handle_t hSig;
 
-    if ((ret = trentos_ssl_cli_export_cert_key(sig_type, pk_ctx, &keyData)) != 0)
+    if ((ret = trentos_x509_crt_export_cert_key(sig_type, pk_ctx, &keyData)) != 0)
     {
-        Debug_LOG_ERROR("trentos_ssl_cli_export_cert_key() failed with %d", ret );
+        Debug_LOG_ERROR("trentos_x509_crt_export_cert_key() failed with %d", ret );
         return ret;
     }
 

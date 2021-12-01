@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 int
-trentos_ssl_cli_export_cert_key(
+trentos_x509_crt_export_cert_key(
     mbedtls_pk_type_t    sig_alg,
     void*                pk_ctx,
     OS_CryptoKey_Data_t* keyData);
