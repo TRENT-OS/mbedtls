@@ -58,6 +58,7 @@
 #if defined(MBEDTLS_SSL_CLI_C)
 
 #if defined(USE_OS_CRYPTO)
+#include "mbedtls/trentos_pk.h"
 #include "mbedtls/trentos_ssl_cli.h"
 #endif
 
@@ -2950,14 +2951,15 @@ start_processing:
 #endif
 
 #if defined(USE_OS_CRYPTO)
-        if( ( ret = trentos_ssl_cli_verify_signature(ssl->hCrypto,
-                                                 ssl->session_negotiate->peer_cert->pk.pk_ctx,
-                                                 pk_alg, md_alg,
-                                                 hash, hashlen,
-                                                 p, sig_len ) ) != 0 ) {
+        if( ( ret = trentos_pk_verify_signature(ssl->hCrypto,
+                        ssl->session_negotiate->peer_cert->pk.pk_ctx,
+                        pk_alg, md_alg,
+                        hash, hashlen,
+                        p, sig_len ) ) != 0 )
+        {
             mbedtls_ssl_send_alert_message( ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
                                                 MBEDTLS_SSL_ALERT_MSG_DECRYPT_ERROR );
-            MBEDTLS_SSL_DEBUG_RET( 1, "trentos_ssl_cli_verify_signature", ret );
+            MBEDTLS_SSL_DEBUG_RET( 1, "trentos_pk_verify_signature", ret );
             return ret;
         }
 #else

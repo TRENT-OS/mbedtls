@@ -65,9 +65,9 @@ set(SOURCES_CERT
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pk.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pk_wrap.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pkparse.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_pk.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/x509.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/x509_crt.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_ssl_cli.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_x509_crt.c"
 )
 
@@ -81,6 +81,7 @@ set(SOURCES_TLS_CLIENT
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pk.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pk_wrap.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/pkparse.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_pk.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/ssl_ciphersuites.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/ssl_cli.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/library/trentos_ssl_cli.c"
@@ -182,8 +183,6 @@ target_compile_options(${PROJECT_NAME}
     INTERFACE
        ${COMPILE_OPTIONS}
        -DUSE_OS_CRYPTO # Use modified mbedTLS via OS_Crypto
-       -DMBEDTLS_SSL_CLI_C # Activate TLS client functionality because it is
-                           # required for signature verification.
 )
 
 target_compile_definitions(${PROJECT_NAME}

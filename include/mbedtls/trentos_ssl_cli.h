@@ -38,16 +38,5 @@ trentos_ssl_cli_exchange_key(
     size_t*                     i,
     size_t*                     n);
 
-int
-trentos_ssl_cli_verify_signature(
-    OS_Crypto_Handle_t hCrypto,
-    void*              pk_ctx,
-    mbedtls_pk_type_t  sig_type,
-    mbedtls_md_type_t  hash_type,
-    const void*        hash,
-    size_t             hash_len,
-    const void*        sig,
-    size_t             sig_len);
-
 #endif /* USE_OS_CRYPTO */
 #endif /* MBEDTLS_TRENTOS_SSL_CLI_H */

@@ -16,7 +16,7 @@
 
 #include "mbedtls/ssl.h"
 #include "mbedtls/ssl_internal.h"
-#include "mbedtls/trentos_ssl_cli.h"
+#include "mbedtls/trentos_pk.h"
 #include "mbedtls/trentos_x509_crt.h"
 
 #include <string.h>
@@ -167,8 +167,8 @@ trentos_x509_crt_verify_signature(
     Debug_LOG_DEBUG("Hash of certificate");
     Debug_DUMP_DEBUG(hash, hash_size);
 
-    return trentos_ssl_cli_verify_signature(hCrypto, pk_ctx, sig_type, hash_type,
-                                            hash, hash_size, sig, sig_len);
+    return trentos_pk_verify_signature(hCrypto, pk_ctx, sig_type, hash_type,
+                                       hash, hash_size, sig, sig_len);
 }
 
 #endif /* USE_OS_CRYPTO */
