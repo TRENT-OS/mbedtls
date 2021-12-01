@@ -10,6 +10,11 @@ the previous versions of the TRENTOS SDK or the baseline version.
 
 ### Changed
 
+- Refactor CMake build targets to remove dependency from certification to TLS:
+  - Move `trentos_ssl_cli_verify_signature()` to new module `trentos_pk`
+    and rename function to `trentos_pk_verify_signature()`.
+  - Move `trentos_ssl_cli_export_cert_key()` to module `trentos_x509_crt` and
+    rename function to `trentos_x509_crt_export_cert_key()`.
 - Rename CMake build target for the TLS client library:
   3rdparty_mbedtls_for_tls_client
 
