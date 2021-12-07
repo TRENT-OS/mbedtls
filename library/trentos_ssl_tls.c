@@ -133,8 +133,8 @@ err1:
     }
 err0:
     if ((err = OS_CryptoKey_free(hKey)) != OS_SUCCESS)
-{
-    Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
+    {
+        Debug_LOG_ERROR("OS_CryptoKey_free() failed with %d", err);
     }
 
     mbedtls_platform_zeroize( tmp, sizeof( tmp ) );
