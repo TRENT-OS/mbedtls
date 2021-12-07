@@ -518,7 +518,7 @@ trentos_ssl_tls_encrypt_buf(
                                 enc_msg + enc_msglen, taglen ) ) != 0 )
 
         {
-            Debug_LOG_ERROR("auth_encrypt() wailed with %d", ret );
+            Debug_LOG_ERROR("auth_encrypt() failed with %d", ret );
             return ( ret );
         }
 
